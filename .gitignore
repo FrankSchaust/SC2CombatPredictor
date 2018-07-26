@@ -1,0 +1,10 @@
+#ignore all replays
+*.SC2Replay
+*.SC2Replay_parsed
+*.gz
+
+#ignore all .csv data
+*.csv
+
+#ignore all tensorboard data
+*.DESKTOP-6R44I4A
