@@ -19,10 +19,12 @@ import time
 import gzip
 import pprint
 
+import pandas as pd 
 import numpy as np
-
 from absl import app
-
+import matplotlib.pyplot as plt
+import matplotlib.ticker as mplt
+from matplotlib.ticker import MaxNLocator
 
 from lib.config import REPLAYS_PARSED_DIR, REPO_DIR
 from data import simulation_pb2
@@ -45,30 +47,62 @@ def main():
     li = 0
     emptyCounter = 0
     overallCounter = 0
-    countPerFeature = np.zeros(21)
+    countPerFeatureLeft = np.zeros(20)
+    countPerFeatureRight = np.zeros(20)
+    countPerFeatureMedianRight = np.zeros(20)
+    countPerFeatureMedianLeft = np.zeros(20)
+    firstentry = True
     while  li < len(replay_parsed_files):
         xs_t, xs_tt, ys_t, ys_tt, li = load_batch(replay_parsed_files, 1000, 0, li, True, False)
         xs_t = np.append(xs_t, xs_tt, axis=0)
+        
         for test in xs_t:
+            
             n = 0
-            countPerFeature[20] += 1 
+            #countPerFeature[20] += 1 
             for f in test:
                 sum = np.sum(f, axis=1)
+                if n == 0 and firstentry:
+                    #print(sum)
+                    firstentry = False
                # print(len(sum), sum)
                 assert len(sum)==84
-                left = np.sum(sum[:42], axis=0)
-                right = np.sum(sum[42:], axis=0)
+                left = np.sum(np.abs(sum[:42]), axis=0)
+                right = np.sum(np.abs(sum[42:]), axis=0)
                 sumum = np.sum(sum, axis=0)
             # #print(left, right)
-                if sumum == 0:
+                #if sumum == 0:
                     #print("both empty")
-                #if left == 0 or right == 0:
+                if left == 0:
                     #print("one side empty!")
                     #emptyCounter += 1
-                    countPerFeature[n] += 1
-                n += 1
+                    countPerFeatureLeft[n] += 1
+                    #if n == 6:
+                        #print(replay_parsed_files[overallCounter])
+                countPerFeatureMedianRight[n] +=  right
+                if right == 0:
+                    countPerFeatureRight[n] += 1
+                    #if n == 6:
+                        #print(replay_parsed_files[overallCounter])
+                countPerFeatureMedianLeft[n] += left
                 
-    print(countPerFeature) 
+                n += 1
+            overallCounter += 1
+    print(countPerFeatureLeft)
+    print(countPerFeatureRight)
+    print(countPerFeatureMedianLeft)
+    print(countPerFeatureMedianRight)
+    #calc median
+    i = 0
+    for o in countPerFeatureMedianLeft:
+        countPerFeatureMedianLeft[i] = o / len(xs_t)# - countPerFeatureRight[i])
+        i += 1
+    i = 0 
+    for m in countPerFeatureMedianRight:
+        countPerFeatureMedianRight[i] = m / len(xs_t)# - countPerFeatureLeft[i])
+        i += 1
+     
+    #print(countPerFeatureMedianLeft, countPerFeatureMedianRight)
     
     replay_log_files = []
     match_arr = []
@@ -90,5 +124,42 @@ def main():
            logfailureCounter += 1
     print(len(match_arr), logfailureCounter)
            
+    names = ("Player Relative", "Height Map", "Visibility", "Creep", "Power", "Player ID", "Unit Type", "Selected", "Hit Points", "Energy", "Shields", "Unit Density", "Unit Density AA", "Mini Height Map", "Mini Visibility", "Mini Creep", "Mini Camera", "Mini Player ID", "Mini Player Relative", "Mini Selected")
+    fig, ax = plt.subplots()
+    
+    index = np.arange(20)
+    bar_width = 0.3
+    
+    opacity = 0.4
+    error_config = {'ecocolor' : '0.3'}
+
+    
+    rects1 = ax.bar(index, countPerFeatureLeft, bar_width, alpha=opacity, color='b', error_kw=error_config, label='Left Side')    
+    rects2 = ax.bar(index+bar_width, countPerFeatureRight, bar_width, alpha=opacity, color='r', error_kw=error_config, label='Right Side')
+    ax.set_xlabel('Feature Maps')
+    ax.set_ylabel('Count')
+    ax.set_title('Count of empty sides per feature map')
+    ax.set_xticks(index+bar_width/2)
+    ax.set_xticklabels(names)
+    ax.legend()
+    def autolabel(rects):
+        for rect in rects:
+            height = rect.get_height()
+            ax.text(rect.get_x() + rect.get_width()/2., 1,
+                    '%d' % int(height),
+                    ha='center', va='bottom', rotation=90)
+    autolabel(rects1)
+    def autolabel1(rects):
+        for rect in rects:
+            height = rect.get_height()
+            ax.text(rect.get_x() + rect.get_width()/2., 1,
+                    '%d' % int(height),
+                    ha='center', va='bottom', rotation=90)
+    autolabel1(rects2)
+    
+    fig.tight_layout()
+    plt.xticks(rotation=90)
+    plt.show()
+    
 if __name__ == "__main__":
     main()

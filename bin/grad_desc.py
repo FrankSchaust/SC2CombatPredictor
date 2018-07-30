@@ -34,6 +34,7 @@ from bin.data_visualization import map_id_to_units_race
 
 import matplotlib.pyplot as plt
 from matplotlib.ticker import MaxNLocator
+from mpl_toolkits.mplot3d.axes3d import Axes3D
 
 from lib.unit_constants import *
 from lib.config import SCREEN_RESOLUTION, MINIMAP_RESOLUTION, MAP_PATH, \
@@ -41,7 +42,7 @@ from lib.config import SCREEN_RESOLUTION, MINIMAP_RESOLUTION, MAP_PATH, \
     
 def main():
     #parameters
-    learning_rate = 0.01
+    learning_rate = 0.005
     training_epochs = 10
     #Graph Input
     x = tf.placeholder(tf.float32, [None, 94])
@@ -52,29 +53,59 @@ def main():
     b = tf.Variable(tf.zeros([3]))
     
     #Construct Model
-    pred = tf.nn.softmax(tf.matmul(x, W) + b)
+    logits = tf.matmul(x, W) + b
+    pred = tf.nn.softmax(logits)
     #minimize error using cross entropy
-    cost = tf.reduce_mean(-tf.reduce_sum(y+tf.log(pred), reduction_indices=1))
+    #cost = tf.reduce_mean(-tf.reduce_sum(y+tf.log(pred), reduction_indices=1))
+    # cross_entropy
+    cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(logits=logits, labels=y))
     
-    grad_W = - tf.matmul(tf.transpose(x), y - pred)
-    grad_b = - tf.reduce_mean(tf.matmul(tf.transpose(x), y - pred), reduction_indices=0)
+    optimizer = tf.train.GradientDescentOptimizer(learning_rate).minimize(cost)
     
-    new_W = W.assign(W - learning_rate*grad_W)
-    new_b = b.assign(b - learning_rate*grad_b)
-    # optimizer = tf.train.GradientDescentOptimizer(learning_rate).minimize(cost)
+    correct_prediction = tf.equal(tf.argmax(pred, 1), tf.argmax(y, 1))
+    accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
+        
     init = tf.global_variables_initializer()
-    
+    trackAcc = []
+    trackW = []
+    trackB = []
+    trackL = []
     with tf.Session() as s: 
         s.run(init)
-        xs_train, xs_test, ys_train, ys_test = load()
+        xs_train, xs_test, ys_train, ys_test = load(50)
         for epoch in range(training_epochs):
-            _, _, c = s.run([new_W, new_b, cost], feed_dict={x: xs_train, y: ys_train})
-            print('Epoch:', '%04d' % (epoch+1), "cost=", "{:.9f}".format(c))
+            _, c = s.run([optimizer, cost], feed_dict={x: xs_train, y: ys_train})
+            acc = s.run(accuracy, feed_dict={x: xs_test, y: ys_test})
+            logi, predic = s.run([logits, pred], feed_dict={x: xs_test, y: ys_test}) 
+            trackAcc.append(acc*100)
+            trackW.append(W.eval())
+            trackB.append(b.eval())
+            trackL.append(logi)
+            print(logi)
+            print('Epoch:', '%04d' % (epoch+1), "completed with an accuracy of:", "{:.3f}".format(acc), "cost=", "{:.9f}".format(c))
             
         correct_prediction = tf.equal(tf.argmax(pred, 1), tf.argmax(y, 1))
         accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
-        print ("Accuracy:", accuracy.eval({x: xs_test, y: ys_test}))   
-def load():
+        print ("Accuracy:", accuracy.eval({x: xs_test, y: ys_test}))
+        
+        trackAcc = np.array(trackAcc)
+        trackW = np.array(trackW)
+        trackB = np.array(trackB)
+        trackL = np.array(trackL)
+        fig = plt.figure(figsize=plt.figaspect(4.))
+        
+        ax = fig.add_subplot(2,1,1)
+        a = np.arange(1, training_epochs+1)
+        ax.plot(a, trackAcc, '-', label='Validation Accuracy')
+        plt.axhline(y=20, xmin=0, xmax=10, linestyle='--', color='k')
+        plt.axhline(y=40, xmin=0, xmax=10, linestyle='--', color='k')
+        plt.show()
+        
+        
+
+    
+
+def load(maxdef = 1000000):
 
 
     replay_log_files = []
@@ -82,6 +113,8 @@ def load():
 
     for root, dir, files in os.walk(os.path.join(REPO_DIR, 'log')):
         for file in files:
+            if (len(replay_log_files) >= maxdef):
+                break;
             if file.endswith(".csv"):
                 replay_log_files.append(os.path.join(root, file))
     i = 0
@@ -98,13 +131,13 @@ def load():
     unit_vector_B = np.zeros(47)
     xs = []
     ys = []
-    print(match_arr[0], match_arr[3])
+    #print(match_arr[0], match_arr[3])
     n=0
     typeerror = 0
     for match in match_arr:
-        if n == 0:
-            print(match)
-            n = 1
+    
+        # if str(match['winner_code']) == str(2):
+            # continue
         try:
             for id in match['team_A']:
                 #if n < 30:
@@ -399,7 +432,7 @@ def load():
                     unit_vector_B[46] += 1
 
             unit_vector = np.append(unit_vector_A, unit_vector_B) 
-            unit_vector = unit_vector.astype(np.float32)
+            unit_vector = unit_vector * 10000
             xs.append(unit_vector)
             ys.append(int(match['winner_code']))
         except TypeError:
@@ -407,10 +440,9 @@ def load():
             typeerror += 1
             continue
         except ZeroDivisionError:
-            #print(match)
             continue  
-    print(typeerror)
-    print(xs[0])
+    #print(typeerror)
+    #print(xs[0])
     ys = keras.utils.to_categorical(ys, num_classes=3)
     
     split = int(len(xs)*0.1)
@@ -419,7 +451,6 @@ def load():
     ys_train = ys[:-split]
     xs_test = xs[-split:]
     ys_test = ys[-split:]
-    print(ys_train)
     return xs_train, xs_test, ys_train, ys_test
   
 if __name__ == "__main__":
