@@ -41,72 +41,68 @@ from lib.config import SCREEN_RESOLUTION, MINIMAP_RESOLUTION, MAP_PATH, \
     REPLAYS_PARSED_DIR, REPLAY_DIR, REPO_DIR, STANDARD_VERSION
     
 def main():
-    #parameters
+    # parameters
     learning_rate = 0.25
     training_epochs = 10
-    #Graph Input
+    # Graph Input
     x = tf.placeholder(tf.float32, [None, 94])
     y = tf.placeholder(tf.float32, [None, 3])
     
     # initialize weight and bias
     W = tf.Variable(tf.truncated_normal([94, 3]))
     
-    #b = tf.Variable(tf.zeros([3]))
+    # b = tf.Variable(tf.zeros([3]))
     
-    #Construct Model
+    # Construct Model
     logits = tf.matmul(x, W) #+ b
     
     pred = tf.nn.softmax(logits)
-    #minimize error using cross entropy
+    # minimize error using cross entropy
     # cross_entropy
     cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(logits=logits, labels=y))
-    
+
     optimizer = tf.train.AdamOptimizer(learning_rate).minimize(cost)
     
     correct_prediction = tf.equal(tf.argmax(pred, 1), tf.argmax(y, 1))
     accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
         
     init = tf.global_variables_initializer()
+    
     trackAcc = []
-    trackW = []
-    #trackB = []
-    trackL = []
     with tf.Session() as s: 
         s.run(init)
         xs_train, xs_test, ys_train, ys_test = load(version='1_3a', file_version='multiple')
+        # loop to train for specified number of epochs
         for epoch in range(training_epochs):
             _, c = s.run([optimizer, cost], feed_dict={x: xs_train, y: ys_train})
             acc = s.run(accuracy, feed_dict={x: xs_test, y: ys_test})
-            logi, predic = s.run([logits, pred], feed_dict={x: xs_test, y: ys_test}) 
+            # track accuracy to display in graph when algorithm finished
             trackAcc.append(acc*100)
-            #print(trackW.append(W.eval()))
-            #trackB.append(b.eval())
-            #trackL.append(logi)
-            print(logi[0])
-            print(logi[1])
-            print(logi[2])
-            print(logi[3])
             print('Epoch:', '%04d' % (epoch+1), "completed with an accuracy of:", "{:.3f}".format(acc), "cost=", "{:.9f}".format(c))
-            
-        correct_prediction = tf.equal(tf.argmax(pred, 1), tf.argmax(y, 1))
-        accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
+        # evaluate accuary when all training steps are completed
         print ("Accuracy:", accuracy.eval({x: xs_test, y: ys_test}))
         
         trackAcc = np.array(trackAcc)
-        track = np.array(trackW)
-        #trackB = np.array(trackB)
-        #trackL = np.array(trackL)
-        fig = plt.figure(figsize=plt.figaspect(4.))
         
+        # create graph
+        fig = plt.figure(figsize=plt.figaspect(4.))
+        # add plot
         ax = fig.add_subplot(2,1,1)
+        # create array that corresponds to the number of training steps as x-axis
+        # y-axis is the accuracy in %
         a = np.arange(1, training_epochs+1)
         ax.plot(a, trackAcc, '-', label='Validation Accuracy')
+        # add 2 helper lines (can be removed if unnecessary)
         plt.axhline(y=20, xmin=0, xmax=10, linestyle='--', color='k')
         plt.axhline(y=40, xmin=0, xmax=10, linestyle='--', color='k')
         plt.show()
 
+# function to load the csv-data and construct the input array as return
+# input array is a vector with one entry per possible unit id 
+# 94 entries 47 per combat party
 def load(version = STANDARD_VERSION, file_version='single'):
     match_arr = []
+    # load file(s) depending on desired input and version number 
     if file_version == 'multiple':
         replay_log_files = []
         
