@@ -24,7 +24,8 @@ from s2clientprotocol.sc2api_pb2 import Computer, LocalMap, InterfaceOptions, \
     Participant, PlayerSetup, RequestCreateGame, RequestJoinGame, VeryEasy
 from s2clientprotocol.common_pb2 import Random
 
-from lib.config import MAP_PATH, REPLAY_DIR
+
+from lib.config import MAP_PATH, REPLAY_DIR, STANDARD_VERSION
 
 
 def main(ununsed_argv):	
@@ -32,7 +33,7 @@ def main(ununsed_argv):
     fail_counter = 0
     while 1:
         try: 
-            game_routine()
+            game_routine(version='1_3a')
             demo_counter += 1
         except RuntimeError:
             print("Observer crashed, demo invalid")
@@ -43,15 +44,15 @@ def main(ununsed_argv):
         except:
             print("Unexpected Websocket error, demo invalid")
             fail_counter += 1
-def game_routine():
-
+def game_routine(version = STANDARD_VERSION):
+        PATH = MAP_PATH + '-v' + version +'.SC2Map'
         run_config = run_configs.get()
         with run_config.start(full_screen=False) as controller:		
-            print('Starting map "{}"...'.format(MAP_PATH), file=sys.stderr)
+            print('Starting map "{}"...'.format(PATH), file=sys.stderr)
             controller.create_game(RequestCreateGame(
                 local_map=LocalMap(
-                    map_path=MAP_PATH,
-                    map_data=run_config.map_data(MAP_PATH)),
+                    map_path=PATH,
+                    map_data=run_config.map_data(PATH)),
                 player_setup=[
                     PlayerSetup(type=Computer, race=Random, difficulty=VeryEasy),
                     PlayerSetup(type=Computer, race=Random, difficulty=VeryEasy),
@@ -74,9 +75,9 @@ def game_routine():
                 # We just want to save the replay and don't care about observations,
                 # so we use a large step_size for speed. But don't make it to large
                 # because we need user interaction at the start.
-                controller.step(16)
+                controller.step(8)
                 obs = controller.observe()
-            replay_path = os.path.join(REPLAY_DIR, ('SC2CombatGenerator' + datetime.datetime.now().strftime('%d-%m-%Y_%H-%M-%S') + '.SC2Replay'))
+            replay_path = os.path.join(REPLAY_DIR, version, ('SC2CombatGenerator' + datetime.datetime.now().strftime('%d-%m-%Y_%H-%M-%S') + '.SC2Replay'))
 			
             print('Game completed. Saving replay to "{}".'.format(replay_path),
                   file=sys.stderr)

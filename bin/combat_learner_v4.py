@@ -25,6 +25,7 @@ from keras.layers import Dense, Flatten
 from keras.layers import Conv2D, Dropout, MaxPooling2D, Conv3D, MaxPooling3D
 from absl import app
 
+from bin.util import *
 from lib.config import REPLAYS_PARSED_DIR
 from data import simulation_pb2
 from bin.load_batch import load_batch
@@ -33,27 +34,22 @@ def main():
     # Set numpy print options so that numpy arrays containing feature layers
     # are printed completely. Useful for debugging.
     np.set_printoptions(threshold=(84 * 84), linewidth=(84 * 2 + 10))
-    depth = 20
+    depth = 13
 	# Loading example files
     replay_parsed_files = []
-    print("Creating list of used files")
-    for root, dir, files in os.walk(REPLAYS_PARSED_DIR):
-        for file in files:
-            if file.endswith(".SC2Replay_parsed.gz"):
-                replay_parsed_files.append(os.path.join(root, file))
-    print("Available Files: ", len(replay_parsed_files))
+    replay_parsed_files = build_file_array(version='1_3a')
 	
     # basic configurations for training:
-    learning_rate = 0.0001
+    learning_rate = 0.5
     epochs = 10
     batch_size = 10
     capped_batch = 300
-    num_classes = 2
-    
-    run_cnn(replay_parsed_files, learning_rate, epochs, batch_size, capped_batch, depth, num_classes)
+    num_classes = 3
+    batches = int(len(replay_parsed_files) / batch_size)
+    run_cnn(replay_parsed_files, learning_rate, epochs, batches, batch_size, capped_batch, depth, num_classes)
     
 
-def run_cnn(replay_parsed_files, learning_rate, epochs, batch_size, capped_batch, depth, num_classes):
+def run_cnn(replay_parsed_files, learning_rate, epochs, batches, batch_size, capped_batch, depth, num_classes):
     acc = 0
     t_acc = 0
     x = tf.placeholder(tf.float32, shape=[None, depth, 84, 84, 1])
@@ -72,21 +68,18 @@ def run_cnn(replay_parsed_files, learning_rate, epochs, batch_size, capped_batch
     with tf.name_scope("layer_b"):
         conv2 = tf.layers.conv3d(inputs=conv1_bn, filters=128, kernel_size=[1, 5, 5], name="conv2", padding='same', activation=tf.nn.relu)
         maxpool2 = tf.layers.max_pooling3d(inputs=conv2, pool_size=[1, 4, 4], strides=(1,4,4))
-        conv3_bn = tf.layers.batch_normalization(inputs=maxpool2, training=True)
-    # # # Input 20, 11, 11
-    # # # Output 20, 6, 6
-    # with tf.name_scope("layer_c"):
-        # conv3 = tf.layers.conv3d(inputs=conv3_bn, filters=256, kernel_size=[1, 5, 5], name="conv3", padding='same', activation=tf.nn.relu)
-        # maxpool3 = tf.layers.max_pooling3d(inputs=conv3, pool_size=[1, 2, 2], strides=2)
-    # with tf.name_scope("batch_norm"):
-        # cnn3d_bn = tf.layers.batch_normalization(inputs=maxpool3, training=True)
+        conv2_bn = tf.layers.batch_normalization(inputs=maxpool2, training=True)
     with tf.name_scope("layer_d"):
-        dropout1 = tf.layers.dropout(inputs=conv3_bn, rate=0.75)
-        flatten1 = tf.layers.flatten(inputs=dropout1)
-        dense1 = tf.layers.dense(inputs=flatten1, units=256, name="dense1", activation=tf.nn.relu)
+        flatten1 = tf.layers.flatten(inputs=conv2_bn)
+        
+        dense1 = tf.layers.dense(inputs=flatten1, units=16, name="dense1", activation=tf.nn.relu)
         dense1_bn = tf.layers.batch_normalization(inputs=dense1, training=True)
-        dropout2 = tf.layers.dropout(inputs=dense1_bn, rate=0.5)
-        y_conv = tf.layers.dense(inputs=dropout2, units=num_classes)
+        
+    with tf.name_scope("layer_e"):
+        dense2 = tf.layers.dense(inputs=dense1_bn, units=32, name="dense2", activation=tf.nn.relu)
+        dense2_bn = tf.layers.batch_normalization(inputs=dense2, training=True)
+        
+        y_conv = tf.layers.dense(inputs=dense2_bn, units=num_classes)
         
     y_ = tf.nn.softmax(y_conv)
        
@@ -111,25 +104,25 @@ def run_cnn(replay_parsed_files, learning_rate, epochs, batch_size, capped_batch
         sess.run(init_op)
         # setup recording variables
         # add a summary to store the accuracy
-        li = 0
-        lis = 0
-        total_batch = int(2000 / batch_size)
         for epoch in range(epochs):
             avg_cost = 0
             acc = 0
             t_acc = 0
             ys_test = []
             xs_test = []
-            for i in range(total_batch):
-                batch_x, _, batch_y, _, li = load_batch(replay_parsed_files, batch_size, i, li, True, True)
+            li = 0
+            lis = 0
+            last_batch_acc = 0
+            for i in range(batches):
+                batch_x, _, batch_y, _, li = load_batch(replay_parsed_files, batch_size, i, li, True)
                 _, c = sess.run([optimiser, cross_entropy], feed_dict={x: batch_x, y: batch_y})
                 train_acc = sess.run(accuracy, feed_dict={x: batch_x, y: batch_y})
-                sys.stdout.write("\r[%-20s] %.2f%% --- Batch %d from %d" % ('='*int(((i+1)/total_batch)*20), ((i+1)/total_batch)*100, i+1, total_batch))
+                sys.stdout.write("\r[%-20s] %.2f%% --- Batch %d from %d --- Latest Acc: %.2f%%" % ('='*int(((i+1)/batches)*20), ((i+1)/batches)*100, i+1, batches, train_acc*100))
                 sys.stdout.flush()
-                avg_cost += c / total_batch
-                acc += train_acc / total_batch
-            for i in range(total_batch): 
-                _, batch_x, _, batch_y, lis = load_batch(replay_parsed_files, batch_size, i, lis, True, True)
+                avg_cost += c / batches
+                acc += train_acc / batches
+            for i in range(batches): 
+                _, batch_x, _, batch_y, lis = load_batch(replay_parsed_files, batch_size, i, lis, True)
                 _, c = sess.run([optimiser, cross_entropy], feed_dict={x: batch_x, y: batch_y})
                 test_acc = sess.run(accuracy, feed_dict={x: batch_x, y: batch_y})
                 #sys.stdout.write("\r[%-20s] %.2f%% --- Batch %d from %d" % ('='*int(((i+1)/total_batch)*20), ((i+1)/total_batch)*100, i+1, total_batch))
@@ -137,7 +130,7 @@ def run_cnn(replay_parsed_files, learning_rate, epochs, batch_size, capped_batch
                 #avg_cost += c / total_batch
                 #xs_test.append(batch_x)
                 #ys_test.append(batch_y)
-                t_acc += test_acc / total_batch
+                t_acc += test_acc / batches
             print(" --- Result of Epoch:", (epoch + 1), "Train accuracy: {:.3f}".format(acc), "cost: {:.3f}".format(avg_cost), " test accuracy: {:.3f}".format(t_acc))
             merged = tf.summary.merge_all()
             summary = sess.run(merged)

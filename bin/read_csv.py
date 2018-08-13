@@ -22,14 +22,7 @@ import numpy as np
 from absl import app
 
 from lib.config import SCREEN_RESOLUTION, MINIMAP_RESOLUTION, MAP_PATH, \
-    REPLAYS_PARSED_DIR, REPLAY_DIR, REPO_DIR
-    
-
-def main(unused_args):
-
-    print(read_csv(os.path.join(REPO_DIR, 'log', 'SC2CombatGenerator01-05-2018_00-11-46', 'unit_log_SC2CombatGenerator01-05-2018_00-11-46_3.csv')))
-
-    
+    REPLAYS_PARSED_DIR, REPLAY_DIR, REPO_DIR   
     
 def read_csv(csv_file):
 

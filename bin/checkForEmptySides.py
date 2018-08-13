@@ -26,24 +26,22 @@ import matplotlib.pyplot as plt
 import matplotlib.ticker as mplt
 from matplotlib.ticker import MaxNLocator
 
+from bin.util import *
 from lib.config import REPLAYS_PARSED_DIR, REPO_DIR
 from data import simulation_pb2
 from bin.load_batch import load_batch
 from bin.read_csv import read_csv
+from bin.hard_coded_decider import return_unit_values_by_id
+from lib.unit_constants import *
 
 def main():
     # Set numpy print options so that numpy arrays containing feature layers
     # are printed completely. Useful for debugging.
     np.set_printoptions(threshold=(84 * 84), linewidth=(84 * 2 + 10))
     depth = 20
+    use_version = '1_3a'
 	# Loading example files
-    replay_parsed_files = []
-    print("Creating list of used files")
-    for root, dir, files in os.walk(REPLAYS_PARSED_DIR):
-        for file in files:
-            if file.endswith(".SC2Replay_parsed.gz"):
-                replay_parsed_files.append(os.path.join(root, file))
-    print("Available Files: ", len(replay_parsed_files))
+    replay_parsed_files = build_file_array(version=use_version)
     li = 0
     emptyCounter = 0
     overallCounter = 0
@@ -52,6 +50,8 @@ def main():
     countPerFeatureMedianRight = np.zeros(20)
     countPerFeatureMedianLeft = np.zeros(20)
     firstentry = True
+    rightc = []
+    leftc = []
     while  li < len(replay_parsed_files):
         xs_t, xs_tt, ys_t, ys_tt, li = load_batch(replay_parsed_files, 1000, 0, li, True, False)
         xs_t = np.append(xs_t, xs_tt, axis=0)
@@ -61,15 +61,19 @@ def main():
             n = 0
             #countPerFeature[20] += 1 
             for f in test:
-                sum = np.sum(f, axis=1)
-                if n == 0 and firstentry:
+                sum = np.sum(f, axis=0)
+                #if n == 8 and firstentry:
                     #print(sum)
-                    firstentry = False
+                    #firstentry = False
                # print(len(sum), sum)
                 assert len(sum)==84
                 left = np.sum(np.abs(sum[:42]), axis=0)
                 right = np.sum(np.abs(sum[42:]), axis=0)
                 sumum = np.sum(sum, axis=0)
+                if n == 8:
+                    leftc.append(left)
+                    rightc.append(right)
+                    firstentry = False
             # #print(left, right)
                 #if sumum == 0:
                     #print("both empty")
@@ -77,13 +81,13 @@ def main():
                     #print("one side empty!")
                     #emptyCounter += 1
                     countPerFeatureLeft[n] += 1
-                    #if n == 6:
-                        #print(replay_parsed_files[overallCounter])
+                    if n == 6:
+                        print(replay_parsed_files[overallCounter])
                 countPerFeatureMedianRight[n] +=  right
                 if right == 0:
                     countPerFeatureRight[n] += 1
-                    #if n == 6:
-                        #print(replay_parsed_files[overallCounter])
+                    if n == 6:
+                        print(replay_parsed_files[overallCounter])
                 countPerFeatureMedianLeft[n] += left
                 
                 n += 1
@@ -107,21 +111,42 @@ def main():
     replay_log_files = []
     match_arr = []
     logfailureCounter = 0
-    for root, dir, files in os.walk(os.path.join(REPO_DIR, 'log')):
-        for file in files:
-            if file.endswith(".csv"):
-                replay_log_files.append(os.path.join(root, file))
+    replay_log_files = build_file_array('logs', use_version)
     i = 0
     print('Looking over', len(replay_log_files), 'files')
     while i < len(replay_log_files):
         match_arr.append(read_csv(replay_log_files[i]))
         i = i + 1
-        #if i%10000 == 0:
-            #print(i, 'csv-files loaded')    
-            
-    for match in match_arr:
-        if not match['team_A'] or not match['team_B']:
+    hpa = []
+    hpb = []
+    j = 0
+    while j < len(match_arr):
+        hp_A = 0
+        hp_B = 0
+ 
+        if len(match_arr[j]['team_A']) < 1 or len(match_arr[j]['team_B']) < 1:
+           print(replay_log_files[j])
            logfailureCounter += 1
+           j += 1
+           continue
+        for id in match_arr[j]['team_A']:
+            if str(id) == '85':
+                continue
+            unit = return_unit_values_by_id(id)
+            hp_A += unit['hp']
+        for id in match_arr[j]['team_B']:
+            if str(id) == '85':
+                continue
+            unit = return_unit_values_by_id(id)
+            hp_B += unit['hp'] 
+        hpa.append(hp_A)
+        hpb.append(hp_B)
+        j += 1
+    i = 0
+    while i < len(hpa):
+        if i % 1000 == 0:
+            print(leftc[i], hpa[i], rightc[i], hpb[i]) 
+        i += 1
     print(len(match_arr), logfailureCounter)
            
     names = ("Player Relative", "Height Map", "Visibility", "Creep", "Power", "Player ID", "Unit Type", "Selected", "Hit Points", "Energy", "Shields", "Unit Density", "Unit Density AA", "Mini Height Map", "Mini Visibility", "Mini Creep", "Mini Camera", "Mini Player ID", "Mini Player Relative", "Mini Selected")

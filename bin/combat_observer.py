@@ -28,13 +28,13 @@ from s2clientprotocol.sc2api_pb2 import InterfaceOptions, RequestStartReplay, \
     SpatialCameraSetup
 
 from lib.config import SCREEN_RESOLUTION, MINIMAP_RESOLUTION, MAP_PATH, \
-    REPLAYS_PARSED_DIR, REPLAY_DIR, REPO_DIR
+    REPLAYS_PARSED_DIR, REPLAY_DIR, REPO_DIR, STANDARD_VERSION
 from data.simulation_pb2 import Battle, Simulation
 
 
-def main(unused_argv):
+def main(unused_argv, version=STANDARD_VERSION):
     replay_files = []
-    for root, dir, files in os.walk(REPLAY_DIR):
+    for root, dir, files in os.walk(os.path.join(REPLAY_DIR, version)):
         for file in files:
             if file.endswith(".SC2Replay"):
                 replay_files.append(os.path.join(root, file))
@@ -46,13 +46,14 @@ def main(unused_argv):
 
 
                 simulation = Simulation()
-                REPLAYS_SINGLE = os.path.join(REPLAYS_PARSED_DIR, os.path.relpath(replay_file, REPLAY_DIR).replace('.SC2Replay', ''))
-                LOG_SINGLE = os.path.join(REPO_DIR, 'log', os.path.relpath(replay_file, REPLAY_DIR).replace('.SC2Replay', ''))
-                SCREENS_SINGLE = os.path.join(REPO_DIR, 'screens', os.path.relpath(replay_file, REPLAY_DIR).replace('.SC2Replay', ''))
+                REPLAYS_SINGLE = os.path.join(REPLAYS_PARSED_DIR, version, os.path.relpath(replay_file, os.path.join(REPLAY_DIR, version)).replace('.SC2Replay', ''))
+                LOG_SINGLE = os.path.join(REPO_DIR, 'log', version, os.path.relpath(replay_file, os.path.join(REPLAY_DIR, version)).replace('.SC2Replay', ''))
+                SCREENS_SINGLE = os.path.join(REPO_DIR, 'screens', version, os.path.relpath(replay_file, os.path.join(REPLAY_DIR, version)).replace('.SC2Replay', ''))
                 os.makedirs(REPLAYS_SINGLE, exist_ok=True)
                 os.makedirs(LOG_SINGLE, exist_ok=True)
                 os.makedirs(SCREENS_SINGLE, exist_ok=True)
                 run_config = run_configs.get()
+                PATH = MAP_PATH + '-v' + version +'.SC2Map'
                 replay_data = run_config.replay_data(replay_file)
                 with run_config.start(game_version=get_replay_version(replay_data),
                                       full_screen=False) as controller:
@@ -61,7 +62,7 @@ def main(unused_argv):
                         replay_data=replay_data,
                         # Overwrite map_data because we know where our map is located
                         # (so we don't care about the map path stored in the replay).
-                        map_data=run_config.map_data(MAP_PATH),
+                        map_data=run_config.map_data(PATH),
                         # Observe from Team Minerals so player_relative features work.
                         observed_player_id=1,
                         # Controls what type of observations we will receive
@@ -110,11 +111,21 @@ def main(unused_argv):
                         curr_num_wins_vespene = \
                             obs.observation.player_common.vespene
 
-                        if curr_num_units != 0 and last_num_units == 0:
+                        if curr_num_units != 0 and last_num_units == 0 and curr_battle is None:
+                            broodling = False
+                            units = obs.observation.raw_data.units
+                            for unit in units:
+                                if unit.unit_type == 289:
+                                    broodling = True
+                            if len(obs.observation.raw_data.units) < 12 and broodling:
+                                curr_num_units = 0
+                                curr_battle = None
+                                continue
                             round_num += 1
                             print('Parsing Round {}...'.format(round_num),
                                   file=sys.stderr)
                             assert curr_battle is None
+                            
                             simulation = Simulation()
                             curr_battle = simulation.battle.add()
                             curr_battle.replay_file = replay_file
@@ -157,7 +168,7 @@ def main(unused_argv):
                                 string = '_' + str(round_num) + '.SC2Replay_parsed.gz'
                                 replay_parsed_file = os.path.join(
                                 REPLAYS_SINGLE,
-                                os.path.relpath(replay_file, REPLAY_DIR).replace(
+                                os.path.relpath(replay_file, os.path.join(REPLAY_DIR, version)).replace(
                                 '.SC2Replay', string))
                                 print('Round %s parsed and saved as: %s' % (round_num, replay_parsed_file), file=sys.stderr)
                                 os.makedirs(REPLAYS_SINGLE, exist_ok=True)
@@ -167,11 +178,13 @@ def main(unused_argv):
                                 units = np.array(units)
                                 df = pd.DataFrame(units)
                                 
-                                df.to_csv(os.path.join(LOG_SINGLE, 'unit_log_' + os.path.relpath(replay_file, REPLAY_DIR).replace('.SC2Replay', '_' + str(round_num) + '.csv')))
+                                df.to_csv(os.path.join(LOG_SINGLE, 'unit_log_' + os.path.relpath(replay_file, os.path.join(REPLAY_DIR, version)).replace('.SC2Replay', '_' + str(round_num) + '.csv')))
                                 units = []                              
                                 curr_battle = None
             except ValueError:
-                print("ValueError goning for next replay")        
+                print("ValueError going for next replay")
+            except AssertionError:
+                print('AssertionError going for next replay')
             # if (error_flag == False):
                 # replay_parsed_file = os.path.join(
                     # REPLAYS_PARSED_DIR,
@@ -183,7 +196,7 @@ def main(unused_argv):
                 # with open(replay_parsed_file, 'wb') as file:
                     # file.write(simulation.SerializeToString())
                 # os.rename(replay_file, os.path.join(REPO_DIR, "parsed_basic", os.path.relpath(replay_file, REPLAY_DIR)))
-            os.rename(replay_file, os.path.join(REPO_DIR, "parsed_basic", os.path.relpath(replay_file, REPLAY_DIR)))
+            os.rename(replay_file, os.path.join(REPO_DIR, "parsed_basic", version, os.path.relpath(replay_file, os.path.join(REPLAY_DIR, version))))
             print('Done.', file=sys.stderr)
    
 

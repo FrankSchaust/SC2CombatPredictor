@@ -1,4 +1,5 @@
-# Copyright 2017 Lukas Schmelzeisen. All Rights Reserved.
+#!/usr/bin/env python3
+# Copyright 2017 Frank Schaust. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,19 +13,25 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import sys
 import os
 
-SCREEN_RESOLUTION = 84
-MINIMAP_RESOLUTION = 64
+from lib.config import *
+from bin.util import *
 
-REPO_DIR = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+def main(unused_args):
+    ### parsed_basic or replays
+    type = 'parsed_basic'
+    version = '1_3a'
+    replay = 'SC2CombatGenerator07-08-2018_11-55-06.SC2Replay'
+    
+    directory = os.path.join(REPO_DIR, type, version, replay)
+    
+    play_replay(directory, version)
+    
+def entry_point():
+    app.run(main)
 
-#MAP_PATH = os.path.join(REPO_DIR, 'CombatGenerator-v1_2a.SC2Map')
-MAP_PATH = os.path.join(REPO_DIR, 'CombatGenerator')
 
-#REPLAY_DIR = os.path.join(REPO_DIR, 'replays_v1_2a')
-REPLAY_DIR = os.path.join(REPO_DIR, 'replays')
-
-REPLAYS_PARSED_DIR = os.path.join(REPO_DIR, 'replays_parsed')
-
-STANDARD_VERSION = '1_3a'
+if __name__ == '__main__':
+    app.run(main)

@@ -28,6 +28,7 @@ from keras.layers import Dense, Flatten
 from keras.layers import Conv2D, Dropout, MaxPooling2D, Conv3D, MaxPooling3D
 from absl import app
 
+from bin.util import *
 from lib.config import REPLAYS_PARSED_DIR
 from data import simulation_pb2
 
@@ -37,11 +38,8 @@ def main(unused_argv):
     # are printed completely. Useful for debugging.
     np.set_printoptions(threshold=(84 * 84), linewidth=(84 * 2 + 10))
 
-    replay_parsed_files = []
-    for root, dir, files in os.walk(REPLAYS_PARSED_DIR):
-        for file in files:
-            if file.endswith(".SC2Replay_parsed.gz"):
-                replay_parsed_files.append(os.path.join(root, file))
+    replay_parsed_files = build_file_array(version='')
+    
 	
     #shaping configure
     depth = 4

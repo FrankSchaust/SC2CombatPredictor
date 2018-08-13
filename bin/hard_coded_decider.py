@@ -28,6 +28,7 @@ from data import simulation_pb2
 from bin.read_csv import read_csv
 from bin.load_batch import load_batch
 from bin.data_visualization import map_id_to_units_race
+from bin.util import *
 
 import matplotlib.pyplot as plt
 from matplotlib.ticker import MaxNLocator
@@ -40,11 +41,9 @@ from lib.config import SCREEN_RESOLUTION, MINIMAP_RESOLUTION, MAP_PATH, \
 def main():
     replay_log_files = []
     match_arr = []
+    skip_remis = False
 
-    for root, dir, files in os.walk(os.path.join(REPO_DIR, 'log')):
-        for file in files:
-            if file.endswith(".csv"):
-                replay_log_files.append(os.path.join(root, file))
+    replay_log_files = build_file_array('logs', '1_3a')
     i = 0
     print('Looking over', len(replay_log_files), 'files')
     while i < len(replay_log_files):
@@ -59,211 +58,55 @@ def main():
     
     
     for match in match_arr:
-        # if match['winner_code'] == '2':
-            # continue
-        #match = match_arr[179]
-        #print(match)
-        powervalue_A_g = 0
-        powervalue_A_a = 0
-        powervalue_B_g = 0
-        powervalue_B_a = 0
-        ut_A = {'ground': 0, 'air': 0}
-        ut_B = {'ground': 0, 'air': 0}
-        at_A = []
-        at_B = []
+        if int(match['winner_code']) == 2 and skip_remis:
+            continue
+        #declare all necessary variables
+        powervalue_A_ground = 0
+        powervalue_A_air = 0
+        powervalue_B_ground = 0
+        powervalue_B_air = 0
+        unit_types_A = {'ground': 0, 'air': 0}
+        unit_types_B = {'ground': 0, 'air': 0}
+        attack_type_A = []
+        attack_type_B = []
         
-        invis_A = False
-        invis_B = False
-        det_A = False
-        det_B = False
-        t_A = {'a' : 0, 'p': 0, 'm': 0, 'massive': 0, 'l': 0, 'b': 0, 'ges': 0}
-        t_B = {'a' : 0, 'p': 0, 'm': 0, 'massive': 0, 'l': 0, 'b': 0, 'ges': 0}
+        invisibility_A = False
+        invisibility_B = False
+        detection_A = False
+        detection_B = False
+        # a = armored, p = psionic, m = mechanical, massive, l = light, b = biological, ges sums up all units
+        types_A = {'a' : 0, 'p': 0, 'm': 0, 'massive': 0, 'l': 0, 'b': 0, 'ges': 0}
+        types_B = {'a' : 0, 'p': 0, 'm': 0, 'massive': 0, 'l': 0, 'b': 0, 'ges': 0}
+        
+        hitpoints_armor_and_shield_A_ground = 0
+        hitpoints_armor_and_shield_A_air = 0
+        hitpoints_armor_and_shield_B_ground = 0
+        hitpoints_armor_and_shield_B_air = 0
+        
         try:
-            for id in match['team_A']:
-                if str(id) == '85':
-                    continue
-                unit = return_unit_values_by_id(id)
-                for t in unit['attributes']:
-                    if t == 'a':
-                        t_A['a'] += 1
-                    if t == 'p':
-                        t_A['p'] += 1
-                    if t == 'm':
-                        t_A['m'] += 1
-                    if t == 'massive':
-                        t_A['massive'] += 1
-                    if t == 'l':
-                        t_A['l'] += 1
-                    if t == 'b':
-                        t_A['b'] += 1
-                t_A['ges'] += 1
+            #calculate the sum of unit types contained in the army
+            types_A = calc_attributes(match['team_A'])
+            types_B = calc_attributes(match['team_B'])
+            #calculate powervalues for each ground and air attacking units considerung the ratio of targetable units in the enemy unit array
+            powervalue_A_ground = calc_unit_bonus(match['team_A'], types_B, 'g')
+            powervalue_A_air = calc_unit_bonus(match['team_A'], types_B, 'a')
             
-            for id in match['team_B']:
-                if str(id) == '85':
-                    continue
-                unit = return_unit_values_by_id(id)
-                for t in unit['attributes']:
-                    if t == 'a':
-                        t_B['a'] += 1
-                    if t == 'p':
-                        t_B['p'] += 1
-                    if t == 'm':
-                        t_B['m'] += 1
-                    if t == 'massive':
-                        t_B['massive'] += 1
-                    if t == 'l':
-                        t_B['l'] += 1
-                    if t == 'b':
-                        t_B['b'] += 1
-                t_B['ges'] += 1
-                    
-                    
-            for id in match['team_A']:
-                if str(id) == '85':
-                    continue
-                unit = return_unit_values_by_id(id)
-                bonus = 0
-                if unit['pw_g'] == 0:
-                    unit['pw_g'] = 1
-                if unit['sh'] == 0:
-                    unit['sh'] = 1  
-                try:
-                    if unit['bonus'][2] == 'g' or unit['bonus'][2] == 'ga':
-                        if unit['bonus'][0] == 'a':
-                            bonus += (unit['bonus'][1] * (t_B['a']/t_B['ges']))
-                        if unit['bonus'][0] == 'p':
-                            bonus += (unit['bonus'][1] * (t_B['p']/t_B['ges']))
-                        if unit['bonus'][0] == 'm':
-                            bonus += (unit['bonus'][1] * (t_B['m']/t_B['ges']))
-                        if unit['bonus'][0] == 'massive':
-                            bonus += (unit['bonus'][1] * (t_B['massive']/t_B['ges']))
-                        if unit['bonus'][0] == 'l':
-                            bonus += (unit['bonus'][1] * (t_B['l']/t_B['ges']))
-                        if unit['bonus'][0] == 'b':
-                            bonus += (unit['bonus'][1] * (t_B['b']/t_B['ges']))
-                except:
-                    bonus = 0
-                    
-                powervalue_A_g += (unit['pw_g'] + bonus) * (1+unit['hp']/10) * (1 + unit['ar']/10) * (1+unit['sh']/10)
-                
-                bonus = 0
-                if unit['pw_a'] == 0:
-                    unit['pw_a'] = 1
-                if unit['sh'] == 0:
-                    unit['sh'] = 1
-                try:
-                    if unit['bonus'][2] == 'a' or unit['bonus'][2] == 'ga':
-                        if unit['bonus'][0] == 'a':
-                            bonus += (unit['bonus'][1] * (t_B['a']/t_B['ges']))
-                        if unit['bonus'][0] == 'p':
-                            bonus += (unit['bonus'][1] * (t_B['p']/t_B['ges']))
-                        if unit['bonus'][0] == 'm':
-                            bonus += (unit['bonus'][1] * (t_B['m']/t_B['ges']))
-                        if unit['bonus'][0] == 'massive':
-                            bonus += (unit['bonus'][1] * (t_B['massive']/t_B['ges']))
-                        if unit['bonus'][0] == 'l':
-                            bonus += (unit['bonus'][1] * (t_B['l']/t_B['ges']))
-                        if unit['bonus'][0] == 'b':
-                            bonus += (unit['bonus'][1] * (t_B['b']/t_B['ges']))
-                except: 
-                    bonus = 0
-                    
-                powervalue_A_a += unit['pw_a'] * (1+unit['hp']/10) * (1 + unit['ar']/10) * (1+unit['sh']/10)
-                if unit['type'] == 'a':
-                    ###
-                    ut_A['air'] += 1
-                elif unit['type'] == 'g':
-                    ut_A['ground'] += 1
-                elif unit['type'] == 'ga':
-                    ut_A['ground'] += 1
-                    ut_A['air'] += 1
-                 
-                if unit['target'] in at_A:
-                    ###
-                    at_A = at_A
-                else:
-                    at_A.append(unit['target'])
+            powervalue_B_ground = calc_unit_bonus(match['team_B'], types_A, 'g')
+            powervalue_B_air = calc_unit_bonus(match['team_B'], types_A, 'a')
+            
+            # array to get sum of air and ground units
+            unit_types_A = calc_unit_types(match['team_A'])
+            unit_types_B = calc_unit_types(match['team_B'])
+            # array to get the sum of contained attack types
+            attack_type_A = calc_attack_types(match['team_A'])
+            attack_type_B = calc_attack_types(match['team_B'])
+            # calculate the durability of ground forces as well as air forces
+            hitpoints_armor_and_shield_A_ground, hitpoints_armor_and_shield_A_air = calc_hp_shield_armor(match['team_A'])
+            hitpoints_armor_and_shield_B_ground, hitpoints_armor_and_shield_B_air = calc_hp_shield_armor(match['team_B'])
 
-                if unit['det'] == 'y':
-                    det_A = True
-                
-                if unit['inv'] == 'y':
-                    invis_A = True
-            #print(powervalue_A_g, powervalue_A_a, ut_A, at_A, det_A, invis_A)
-            for id in match['team_B']:
-                if str(id) == '85':
-                    continue
-                unit = return_unit_values_by_id(id)
-                bonus = 0
-                if unit['pw_g'] == 0:
-                    unit['pw_g'] = 1
-                if unit['sh'] == 0:
-                    unit['sh'] = 1
-                try:
-                    if unit['bonus'][2] == 'g' or unit['bonus'][2] == 'ga':
-                        if unit['bonus'][0] == 'a':
-                            bonus += (unit['bonus'][1] * (t_A['a']/t_A['ges']))
-                        if unit['bonus'][0] == 'p':
-                            bonus += (unit['bonus'][1] * (t_A['p']/t_A['ges']))
-                        if unit['bonus'][0] == 'm':
-                            bonus += (unit['bonus'][1] * (t_A['m']/t_A['ges']))
-                        if unit['bonus'][0] == 'massive':
-                            bonus += (unit['bonus'][1] * (t_A['massive']/t_A['ges']))
-                        if unit['bonus'][0] == 'l':
-                            bonus += (unit['bonus'][1] * (t_A['l']/t_A['ges']))
-                        if unit['bonus'][0] == 'b':
-                            bonus += (unit['bonus'][1] * (t_A['b']/t_A['ges']))
-                except:
-                    bonus = 0
+            detection_A, invisibility_A = get_detection_and_invisibility(match['team_A'])
+            detection_B, invisibility_B = get_detection_and_invisibility(match['team_B'])
                     
-                powervalue_B_g += unit['pw_g'] * (1+unit['hp']/10) * (1 + unit['ar']/10) * (1+unit['sh']/10)
-                
-                bonus = 0
-                if unit['pw_a'] == 0:
-                    unit['pw_a'] = 1
-                if unit['sh'] == 0:
-                    unit['sh'] = 1
-                try:
-                    if unit['bonus'][2] == 'a' or unit['bonus'][2] == 'ga':
-                        if unit['bonus'][0] == 'a':
-                            bonus += (unit['bonus'][1] * (t_A['a']/t_A['ges']))
-                        if unit['bonus'][0] == 'p':
-                            bonus += (unit['bonus'][1] * (t_A['p']/t_A['ges']))
-                        if unit['bonus'][0] == 'm':
-                            bonus += (unit['bonus'][1] * (t_A['m']/t_A['ges']))
-                        if unit['bonus'][0] == 'massive':
-                            bonus += (unit['bonus'][1] * (t_A['massive']/t_A['ges']))
-                        if unit['bonus'][0] == 'l':
-                            bonus += (unit['bonus'][1] * (t_A['l']/t_A['ges']))
-                        if unit['bonus'][0] == 'b':
-                            bonus += (unit['bonus'][1] * (t_A['b']/t_A['ges']))
-                except:
-                    bonus = 0
-                    
-                powervalue_B_a += unit['pw_a'] * (1+unit['hp']/10) * (1 + unit['ar']/10) * (1+unit['sh']/10)
-                
-                if unit['type']== 'a':
-                    ###
-                    ut_B['air'] += 1
-                elif unit['type'] == 'g':
-                    ut_B['ground'] += 1
-                elif unit['type'] == 'ga':
-                    ut_B['ground'] += 1
-                    ut_B['air'] += 1
-                if unit['target'] in at_B:
-                    ###
-                    at_B = at_B
-                else:
-                    at_B.append(unit['target'])
-
-                
-                if unit['det'] == 'y':
-                    det_B = True
-                
-                if unit['inv'] == 'y':
-                    invis_B = True
-                    
-            #print(powervalue_B_g, powervalue_B_a, ut_B, at_B, det_B, invis_B)
         except TypeError:
             print(match, replay_log_files[i])
             continue
@@ -273,88 +116,198 @@ def main():
             
         ### merge powervalues by ratio of enemy unit types
         
-        ut_A_ges = ut_A['air'] + ut_A['ground']
-        ut_B_ges = ut_B['air'] + ut_B['ground']
+        unit_types_A_ges = unit_types_A['air'] + unit_types_A['ground']
+        unit_types_B_ges = unit_types_B['air'] + unit_types_B['ground']
         try: 
-            powervalue_A = (ut_B['air']/ut_B_ges) * powervalue_A_a + (ut_B['ground']/ut_B_ges) * powervalue_A_g
-            powervalue_B = (ut_A['air']/ut_A_ges) * powervalue_B_a + (ut_A['ground']/ut_A_ges) * powervalue_B_g 
+            powervalue_A = (unit_types_B['air']/unit_types_B_ges) * powervalue_A_air + (unit_types_B['ground']/unit_types_B_ges) * powervalue_A_ground
+            powervalue_B = (unit_types_A['air']/unit_types_A_ges) * powervalue_B_air + (unit_types_A['ground']/unit_types_A_ges) * powervalue_B_ground
         except ZeroDivisionError:
             print(match, replay_log_files[i])
             continue
+        
+        ### estimate winner 
         ### Standard value for estimation is REMIS
+        estimation = 2   
         
-        
-        estimation = 2            
-        ###estimate winner     
+        ### fightable is true for an army if all unit types of the enemy army can be fought by it. 
+        ### E.g. If air units are in the opposing army it has to contain units with air targeted attacks, 
+        ### If units are invisible the army has to contain units with the detector property a.s.o.
         fightable_A = False
         fightable_B = False
+        
         ### Can the units fight each other
-        if ut_A['ground'] > 0:
-            if 'g' in at_B or 'ga' in at_B:
-                fightable_B = True 
-            else: 
-                fightable_B = False
-        if ut_A['air'] > 0:
-            if 'a' in at_B or 'ga' in at_B:
-                fightable_B = True
-            else: 
-                fightable_B = False
+        try:
+            fightable_A = calc_fightable(unit_types_B, attack_type_A, invisibility_B, detection_A)
+            fightable_B = calc_fightable(unit_types_A, attack_type_B, invisibility_A, detection_B)
+        except TypeError:
+            print(match, replay_log_files[i])
+            continue
         
-        if ut_B['ground'] > 0: 
-            if 'g' in at_A or 'ga' in at_A:
-                fightable_A = True  
-            else: 
-                fightable_A = False
-        if ut_B['air'] > 0: 
-            if 'a' in at_A or 'ga' in at_A:
-                fightable_A = True
-            else: 
-                fightable_A = False
-        
-        ### Check for invisibility
-        if invis_A:
-            if det_B: 
-                fightable_B = fightable_B
-            else: fightable_B = False
-        if invis_B:
-            if det_A:
-                fightable_A = fightable_A
-            else: fightable_A = False
-            
-        ### If units can fight each other the outcome is REMIS    
-        if not fightable_A and not fightable_B:
-            estimation = 2
-        ### If units A can fight units b but not the other way around AND
-        ### units A are powerfull enough to clear map within 45s TEAM A WINS 
-        ### otherwise REMIS
-        if fightable_A and not fightable_B: 
-            if powervalue_A/2 > powervalue_B:
-                estimation = 0
-            else: 
-                estimation = 2
-        ### Same logic applied to Team B 
-        if not fightable_A and fightable_B:
-            if powervalue_A < powervalue_B/2:
-                estimation = 1
-            else:
-                estimation = 2
-        ### If both teams can fight each other, we compare the calculated powervalues
-        if fightable_A and fightable_B:
-            if powervalue_A > powervalue_B:
-                estimation = 0
-            else:
-                estimation = 1 
-        
-       
-        print(powervalue_A, fightable_A) 
-        print(powervalue_B, fightable_B) 
-        print(estimation, match['winner_code'], i)
-        print()
+        ### estimate outcome comparing powervalues and fighting ability
+        estimation = estimateOutcome(fightable_A, fightable_B, powervalue_A, powervalue_A_ground, powervalue_A_air, powervalue_B, powervalue_B_ground, powervalue_B_air, hitpoints_armor_and_shield_A_ground, hitpoints_armor_and_shield_A_air, hitpoints_armor_and_shield_B_ground, hitpoints_armor_and_shield_B_air)
         i += 1
         if str(estimation) == str(match['winner_code']):
             correct_pred += 1
-    
+        print(estimation, match['winner_code'])
     print(correct_pred, i, correct_pred/i)
+    
+def estimateOutcome(fightable_A, fightable_B, powervalue_A, powervalue_A_ground, powervalue_A_air, powervalue_B, powervalue_B_ground, powervalue_B_air, hitpoints_armor_and_shield_A_ground, hitpoints_armor_and_shield_A_air, hitpoints_armor_and_shield_B_ground, hitpoints_armor_and_shield_B_air):
+    ### If units can fight each other the outcome is REMIS    
+    if not fightable_A and not fightable_B:
+        estimation = 2
+    ### If units A can fight units b but not the other way around AND
+    ### units A are powerfull enough to clear map within 45s TEAM A WINS 
+    ### otherwise REMIS
+    if fightable_A and not fightable_B: 
+        # times 120 because the map limit per encounter is set to 2 in-game minutes
+        if (powervalue_A_ground*60) >= hitpoints_armor_and_shield_B_ground and (powervalue_A_air*60) >= hitpoints_armor_and_shield_B_air:
+            estimation = 0
+        else: 
+            estimation = 2
+    ### Same logic applied to Team B 
+    if not fightable_A and fightable_B:
+        if (powervalue_B_ground*60) >= hitpoints_armor_and_shield_A_ground and (powervalue_B_air*60) >= hitpoints_armor_and_shield_A_air:
+            estimation = 1
+        else:
+            estimation = 2
+    ### If both teams can fight each other, we compare the calculated powervalues
+    if fightable_A and fightable_B:
+        if powervalue_A * (hitpoints_armor_and_shield_A_ground + hitpoints_armor_and_shield_A_air) > powervalue_B * (hitpoints_armor_and_shield_A_ground + hitpoints_armor_and_shield_A_air):
+            estimation = 0
+        else:
+            estimation = 1 
+    return estimation
+
+def calc_hp_shield_armor(match):
+    hitpoints_and_shield_ground = 0
+    hitpoints_and_shield_air = 0
+    for id in match:
+        if str(id) == '85':
+            continue
+        unit = return_unit_values_by_id(id)
+        if str(unit['type']) == 'g' or str(unit['type']) == 'ga':
+            hitpoints_and_shield_ground += unit['hp'] + unit['sh'] + unit['ar']
+        if str(unit['type']) == 'a' or str(unit['type']) == 'ga':
+            hitpoints_and_shield_air += unit['hp'] + unit['sh'] + unit['ar']
+    return hitpoints_and_shield_ground, hitpoints_and_shield_air
+    
+def get_detection_and_invisibility(match):
+    det = False
+    inv = False
+    for id in match:
+        if str(id) == '85':
+            continue
+        unit = return_unit_values_by_id(id)
+        if unit['det'] == 'y':
+            det = True
+        if unit['inv'] == 'y':
+            inv = True
+    return det, inv
+    
+def calc_fightable(unit_types, attack_types, invis, det):
+    fightable = False
+    if unit_types['ground'] > 0:
+        if 'g' in attack_types or 'ga' in attack_types:
+            fightable = True 
+        else: 
+            fightable = False
+    if unit_types['air'] > 0:
+        if 'a' in attack_types or 'ga' in attack_types:
+            fightable= True
+        else: 
+            fightable = False
+    if invis:
+        if det:
+            fightable = fightable
+        else: fightable = False
+    return fightable
+
+
+def calc_attack_types(match):
+    attack_type = []
+    for id in match:
+        if str(id) == '85':
+            continue
+        unit = return_unit_values_by_id(id)
+        
+        if unit['target'] in attack_type:
+            ###
+            attack_type = attack_type
+        else:
+            attack_type.append(unit['target'])
+    return attack_type
+        
+   
+def calc_unit_types(match):
+    unit_type = {'ground': 0, 'air': 0}
+    for id in match:
+        if str(id) == '85':
+            continue
+        unit = return_unit_values_by_id(id)
+        if unit['type'] == 'a':
+        ###
+            unit_type['air'] += 1
+        elif unit['type'] == 'g':
+            unit_type['ground'] += 1
+        elif unit['type'] == 'ga':
+            unit_type['ground'] += 1
+            unit_type['air'] += 1
+    return unit_type
+ 
+def calc_unit_bonus(match, t_B, ga):
+    #construct pw_% value
+    unit_power = 'pw_' + ga
+    powervalue = 0
+    for id in match:
+        if str(id) == '85':
+            continue
+        unit = return_unit_values_by_id(id)
+        bonus = 0
+        if unit[unit_power] == 0:
+            unit[unit_power] = 1
+        if unit['sh'] == 0:
+            unit['sh'] = 1  
+        try:
+            if unit['bonus'][2] == ga or unit['bonus'][2] == 'ga':
+                if unit['bonus'][0] == 'a':
+                    bonus += (unit['bonus'][1] * (t_B['a']/t_B['ges']))
+                if unit['bonus'][0] == 'p':
+                    bonus += (unit['bonus'][1] * (t_B['p']/t_B['ges']))
+                if unit['bonus'][0] == 'm':
+                    bonus += (unit['bonus'][1] * (t_B['m']/t_B['ges']))
+                if unit['bonus'][0] == 'massive':
+                    bonus += (unit['bonus'][1] * (t_B['massive']/t_B['ges']))
+                if unit['bonus'][0] == 'l':
+                    bonus += (unit['bonus'][1] * (t_B['l']/t_B['ges']))
+                if unit['bonus'][0] == 'b':
+                    bonus += (unit['bonus'][1] * (t_B['b']/t_B['ges']))
+        except:
+            bonus = 0
+        powervalue += (unit[unit_power] + bonus)
+        
+    return powervalue
+
+def calc_attributes(match):
+    t_A = {'a' : 0, 'p': 0, 'm': 0, 'massive': 0, 'l': 0, 'b': 0, 'ges': 0}
+    for id in match:
+        if str(id) == '85':
+            continue
+        unit = return_unit_values_by_id(id)
+        for t in unit['attributes']:
+            if t == 'a':
+                t_A['a'] += 1
+            if t == 'p':
+                t_A['p'] += 1
+            if t == 'm':
+                t_A['m'] += 1
+            if t == 'massive':
+                t_A['massive'] += 1
+            if t == 'l':
+                t_A['l'] += 1
+            if t == 'b':
+                t_A['b'] += 1
+        t_A['ges'] += 1
+    return t_A
     
 def return_unit_values_by_id(id):
     ###terran ids

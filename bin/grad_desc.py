@@ -36,31 +36,33 @@ import matplotlib.pyplot as plt
 from matplotlib.ticker import MaxNLocator
 from mpl_toolkits.mplot3d.axes3d import Axes3D
 
+from bin.util import *
 from lib.unit_constants import *
 from lib.config import SCREEN_RESOLUTION, MINIMAP_RESOLUTION, MAP_PATH, \
-    REPLAYS_PARSED_DIR, REPLAY_DIR, REPO_DIR
+    REPLAYS_PARSED_DIR, REPLAY_DIR, REPO_DIR, STANDARD_VERSION
     
 def main():
     #parameters
-    learning_rate = 0.005
-    training_epochs = 10
+    learning_rate = 0.01
+    training_epochs = 50
     #Graph Input
     x = tf.placeholder(tf.float32, [None, 94])
     y = tf.placeholder(tf.float32, [None, 3])
     
     # initialize weight and bias
-    W = tf.Variable(tf.zeros([94, 3]))
-    b = tf.Variable(tf.zeros([3]))
+    W = tf.Variable(tf.truncated_normal([94, 3]))
+    
+    #b = tf.Variable(tf.zeros([3]))
     
     #Construct Model
-    logits = tf.matmul(x, W) + b
+    logits = tf.matmul(x, W) #+ b
+    
     pred = tf.nn.softmax(logits)
     #minimize error using cross entropy
-    #cost = tf.reduce_mean(-tf.reduce_sum(y+tf.log(pred), reduction_indices=1))
     # cross_entropy
     cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(logits=logits, labels=y))
     
-    optimizer = tf.train.GradientDescentOptimizer(learning_rate).minimize(cost)
+    optimizer = tf.train.AdamOptimizer(learning_rate).minimize(cost)
     
     correct_prediction = tf.equal(tf.argmax(pred, 1), tf.argmax(y, 1))
     accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
@@ -68,20 +70,23 @@ def main():
     init = tf.global_variables_initializer()
     trackAcc = []
     trackW = []
-    trackB = []
+    #trackB = []
     trackL = []
     with tf.Session() as s: 
         s.run(init)
-        xs_train, xs_test, ys_train, ys_test = load(50)
+        xs_train, xs_test, ys_train, ys_test = load(version='1_3a')
         for epoch in range(training_epochs):
             _, c = s.run([optimizer, cost], feed_dict={x: xs_train, y: ys_train})
             acc = s.run(accuracy, feed_dict={x: xs_test, y: ys_test})
             logi, predic = s.run([logits, pred], feed_dict={x: xs_test, y: ys_test}) 
             trackAcc.append(acc*100)
-            trackW.append(W.eval())
-            trackB.append(b.eval())
-            trackL.append(logi)
-            print(logi)
+            #print(trackW.append(W.eval()))
+            #trackB.append(b.eval())
+            #trackL.append(logi)
+            print(logi[0])
+            print(logi[1])
+            print(logi[2])
+            print(logi[3])
             print('Epoch:', '%04d' % (epoch+1), "completed with an accuracy of:", "{:.3f}".format(acc), "cost=", "{:.9f}".format(c))
             
         correct_prediction = tf.equal(tf.argmax(pred, 1), tf.argmax(y, 1))
@@ -89,9 +94,9 @@ def main():
         print ("Accuracy:", accuracy.eval({x: xs_test, y: ys_test}))
         
         trackAcc = np.array(trackAcc)
-        trackW = np.array(trackW)
-        trackB = np.array(trackB)
-        trackL = np.array(trackL)
+        track = np.array(trackW)
+        #trackB = np.array(trackB)
+        #trackL = np.array(trackL)
         fig = plt.figure(figsize=plt.figaspect(4.))
         
         ax = fig.add_subplot(2,1,1)
@@ -100,23 +105,27 @@ def main():
         plt.axhline(y=20, xmin=0, xmax=10, linestyle='--', color='k')
         plt.axhline(y=40, xmin=0, xmax=10, linestyle='--', color='k')
         plt.show()
-        
-        
 
+def subset_of_weights(x, W):
     
+    n = 0
+    subset = []
+    x = tf.placeholder(tf.float32, [None, 94])
+    W = tf.placeholder(tf.float32, [None, 94, 3])
+    while len(x) > n:
+        if x[n] != 0:
+            subset = np.append(subset, W[n])
+        n += 1
+    subset = tf.convert_to_tensor(subset, np.float32)
+    return subset
 
-def load(maxdef = 1000000):
+def load(maxdef = 1000000, version = STANDARD_VERSION):
 
 
     replay_log_files = []
     match_arr = []
 
-    for root, dir, files in os.walk(os.path.join(REPO_DIR, 'log')):
-        for file in files:
-            if (len(replay_log_files) >= maxdef):
-                break;
-            if file.endswith(".csv"):
-                replay_log_files.append(os.path.join(root, file))
+    replay_log_files = build_file_array('logs', version)
     i = 0
     print('Looking over', len(replay_log_files), 'files')
     while i < len(replay_log_files):
@@ -432,7 +441,6 @@ def load(maxdef = 1000000):
                     unit_vector_B[46] += 1
 
             unit_vector = np.append(unit_vector_A, unit_vector_B) 
-            unit_vector = unit_vector * 10000
             xs.append(unit_vector)
             ys.append(int(match['winner_code']))
         except TypeError:

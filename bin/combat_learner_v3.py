@@ -24,6 +24,7 @@ from keras.layers import Dense, Flatten
 from keras.layers import Conv2D, Dropout, MaxPooling2D, Conv3D, MaxPooling3D
 from absl import app
 
+from bin.util import *
 from lib.config import REPLAYS_PARSED_DIR
 from data import simulation_pb2
 from bin.load_batch import load_batch
@@ -121,12 +122,7 @@ def main(unused_argv):
     depth = 20
 	# Loading example files
     replay_parsed_files = []
-    print("Creating list of used files")
-    for root, dir, files in os.walk(REPLAYS_PARSED_DIR):
-        for file in files:
-            if file.endswith(".SC2Replay_parsed.gz"):
-                replay_parsed_files.append(os.path.join(root, file))
-    print("Available Files: ", len(replay_parsed_files))
+    replay_parsed_files = build_file_array(version='')
 	
     # basic configurations for training:
     learning_rate = 0.0001

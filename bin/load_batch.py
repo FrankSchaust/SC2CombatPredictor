@@ -167,55 +167,55 @@ def load_batch(replay_parsed_files, capped_batch = 1000, run = 0, lastindex = 0,
             data_processed = np.resize(data_processed,(84, 84))
             feature_layers.append(data_processed)
 			
-			# # # Appending the feature layers from the minimap
-            # # height map
-            data_hm_mm = np.frombuffer(mm_height_map.data, dtype=np.int32) \
-                .reshape((1, 32, 32))
-            data_processed = data_hm_mm[0].copy()
-            data_processed = np.resize(data_processed,(84, 84))
-            feature_layers.append(data_processed)
+			# # # # Appending the feature layers from the minimap
+            # # # height map
+            # data_hm_mm = np.frombuffer(mm_height_map.data, dtype=np.int32) \
+                # .reshape((1, 32, 32))
+            # data_processed = data_hm_mm[0].copy()
+            # data_processed = np.resize(data_processed,(84, 84))
+            # feature_layers.append(data_processed)
 			
-			# # visibility map
-            data_vi_mm = np.frombuffer(mm_visibility.data, dtype=np.int32) \
-                .reshape((1, 32, 32))
-            data_processed = data_vi_mm[0].copy()
-            data_processed = np.resize(data_processed,(84, 84))
-            feature_layers.append(data_processed)
+			# # # visibility map
+            # data_vi_mm = np.frombuffer(mm_visibility.data, dtype=np.int32) \
+                # .reshape((1, 32, 32))
+            # data_processed = data_vi_mm[0].copy()
+            # data_processed = np.resize(data_processed,(84, 84))
+            # feature_layers.append(data_processed)
 			
-			# # creep
-            data_cr_mm = np.frombuffer(mm_height_map.data, dtype=np.int8) \
-                .reshape((1, -1, 2))
-            data_processed = data_cr_mm[0].copy()
-            data_processed = np.resize(data_processed,(84, 84))
-            feature_layers.append(data_processed)
+			# # # creep
+            # data_cr_mm = np.frombuffer(mm_height_map.data, dtype=np.int8) \
+                # .reshape((1, -1, 2))
+            # data_processed = data_cr_mm[0].copy()
+            # data_processed = np.resize(data_processed,(84, 84))
+            # feature_layers.append(data_processed)
 			
-			# # camera 
-            data_ca_mm = np.frombuffer(mm_height_map.data, dtype=np.int32) \
-                .reshape((1, 32, 32))
-            data_processed = data_ca_mm[0].copy()
-            data_processed = np.resize(data_processed,(84, 84))
-            feature_layers.append(data_processed)			
+			# # # camera 
+            # data_ca_mm = np.frombuffer(mm_height_map.data, dtype=np.int32) \
+                # .reshape((1, 32, 32))
+            # data_processed = data_ca_mm[0].copy()
+            # data_processed = np.resize(data_processed,(84, 84))
+            # feature_layers.append(data_processed)			
 			
-	        # # player id
-            data_id_mm = np.frombuffer(mm_height_map.data, dtype=np.int32) \
-                .reshape((1, 32, 32))
-            data_processed = data_id_mm[0].copy()
-            data_processed = np.resize(data_processed,(84, 84))
-            feature_layers.append(data_processed)
+	        # # # player id
+            # data_id_mm = np.frombuffer(mm_height_map.data, dtype=np.int32) \
+                # .reshape((1, 32, 32))
+            # data_processed = data_id_mm[0].copy()
+            # data_processed = np.resize(data_processed,(84, 84))
+            # feature_layers.append(data_processed)
 			
-			# # player relative
-            data_pr_mm = np.frombuffer(mm_height_map.data, dtype=np.int32) \
-                .reshape((1, 32, 32))
-            data_processed = data_pr_mm[0].copy()
-            data_processed = np.resize(data_processed,(84, 84))
-            feature_layers.append(data_processed)
+			# # # player relative
+            # data_pr_mm = np.frombuffer(mm_height_map.data, dtype=np.int32) \
+                # .reshape((1, 32, 32))
+            # data_processed = data_pr_mm[0].copy()
+            # data_processed = np.resize(data_processed,(84, 84))
+            # feature_layers.append(data_processed)
 			
-			# # selected
-            data_se_mm = np.frombuffer(mm_height_map.data, dtype=np.int8) \
-                .reshape((1, -1, 2))
-            data_processed = data_se_mm[0].copy()
-            data_processed = np.resize(data_processed,(84, 84))
-            feature_layers.append(data_processed)
+			# # # selected
+            # data_se_mm = np.frombuffer(mm_height_map.data, dtype=np.int8) \
+                # .reshape((1, -1, 2))
+            # data_processed = data_se_mm[0].copy()
+            # data_processed = np.resize(data_processed,(84, 84))
+            # feature_layers.append(data_processed)
 			
 			# # Make list a np array
             feature_layers = np.array(feature_layers) 
@@ -253,7 +253,7 @@ def load_batch(replay_parsed_files, capped_batch = 1000, run = 0, lastindex = 0,
     ys_train = keras.utils.to_categorical(ys_train, num_classes=num_classes)
     ys_test = keras.utils.to_categorical(ys_test, num_classes=num_classes)
     #shaping
-    depth = 20
+    depth = 13
     img_rows, img_cols = 84, 84
     input_shape = (depth, img_rows,img_cols,1)
 	
