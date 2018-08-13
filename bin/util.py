@@ -17,6 +17,8 @@ import os
 import sys
 import gzip
 import time
+import csv
+import pandas as pd
 from absl import app
 
 from pysc2 import run_configs
@@ -25,6 +27,7 @@ from s2clientprotocol.common_pb2 import Size2DI
 from s2clientprotocol.sc2api_pb2 import InterfaceOptions, RequestStartReplay, \
     SpatialCameraSetup
 
+from bin.read_csv import *    
 from lib.config import SCREEN_RESOLUTION, MINIMAP_RESOLUTION, MAP_PATH, \
     REPLAYS_PARSED_DIR, REPLAY_DIR, REPO_DIR, STANDARD_VERSION
 from data.simulation_pb2 import Battle, Simulation
@@ -108,3 +111,46 @@ def play_replay(dir, version):
                         controller.step(8)
                         time.sleep(1)
                         obs = controller.observe()
+                        
+def read_csv(csv_file):
+
+    file = open(csv_file, 'r')
+    csv_reader = csv.reader(file, delimiter=',')
+    for row in csv_reader:
+        if row[0] == '0':
+            team_a = row[1]
+        elif row[0] == '1':
+            team_b = row[1]
+        elif row[0] == '2':
+            winner = row[1]
+            winner = winner.replace('[','').replace(']','')
+    dict = {'team_A': string_to_csv(team_a), 'team_B': string_to_csv(team_b), 'winner_code': winner}
+    file.close()
+    return dict
+
+def string_to_csv(str):
+    str = str.replace('[', '').replace(']', '').replace(' ', '')
+    arr = str.split(',')
+    return arr
+
+def sum_up_csv_files(version = STANDARD_VERSION):
+    # get all .csv-files from a given version
+    replay_log_files = build_file_array('logs', version)
+    match_arr = []
+    # create an array which contains all data from given .csv-files
+    i = 0
+    print('Looking over', len(replay_log_files), 'files')
+    while i < len(replay_log_files):
+        match_arr.append(read_csv(replay_log_files[i]))
+        i = i + 1
+    PATH = os.path.join(REPO_DIR, version)
+    os.makedirs(PATH, exist_ok=True)
+    FILE_PATH = os.path.join(PATH, 'all_csv_from_version_' + version + '.csv')
+    # stream all data into a single .csv-file
+    with open(FILE_PATH, "w+") as file:
+        try:
+            for match in match_arr:
+                writer = csv.writer(file)
+                writer.writerow( (match['team_A'], match['team_B'], match['winner_code']) )
+        finally:
+            file.close()

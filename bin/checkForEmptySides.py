@@ -30,7 +30,6 @@ from bin.util import *
 from lib.config import REPLAYS_PARSED_DIR, REPO_DIR
 from data import simulation_pb2
 from bin.load_batch import load_batch
-from bin.read_csv import read_csv
 from bin.hard_coded_decider import return_unit_values_by_id
 from lib.unit_constants import *
 

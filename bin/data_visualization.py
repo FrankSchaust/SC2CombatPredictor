@@ -17,7 +17,7 @@ import os
 import sys
 import csv
 
-from bin.read_csv import read_csv
+from bin.util import read_csv
 
 import pandas as pd
 import numpy as np

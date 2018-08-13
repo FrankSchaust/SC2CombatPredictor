@@ -27,7 +27,6 @@ import tensorflow as tf
 from absl import app
 from data import simulation_pb2
 
-from bin.read_csv import read_csv
 from bin.load_batch import load_batch
 from bin.data_visualization import map_id_to_units_race
 

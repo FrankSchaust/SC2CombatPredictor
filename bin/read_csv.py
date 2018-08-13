@@ -24,26 +24,7 @@ from absl import app
 from lib.config import SCREEN_RESOLUTION, MINIMAP_RESOLUTION, MAP_PATH, \
     REPLAYS_PARSED_DIR, REPLAY_DIR, REPO_DIR   
     
-def read_csv(csv_file):
 
-    file = open(csv_file, 'r')
-    csv_reader = csv.reader(file, delimiter=',')
-    for row in csv_reader:
-        if row[0] == '0':
-            team_a = row[1]
-        elif row[0] == '1':
-            team_b = row[1]
-        elif row[0] == '2':
-            winner = row[1]
-            winner = winner.replace('[','').replace(']','')
-    dict = {'team_A': string_to_csv(team_a), 'team_B': string_to_csv(team_b), 'winner_code': winner}
-    file.close()
-    return dict
-
-def string_to_csv(str):
-    str = str.replace('[', '').replace(']', '').replace(' ', '')
-    arr = str.split(',')
-    return arr
 	
 
 def entry_point():
