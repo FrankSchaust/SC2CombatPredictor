@@ -42,8 +42,8 @@ from lib.config import SCREEN_RESOLUTION, MINIMAP_RESOLUTION, MAP_PATH, \
     
 def main():
     # parameters
-    learning_rate = 0.25
-    training_epochs = 10
+    learning_rate = 0.05
+    training_epochs = 100
     # Graph Input
     x = tf.placeholder(tf.float32, [None, 94])
     y = tf.placeholder(tf.float32, [None, 3])
@@ -69,6 +69,7 @@ def main():
     init = tf.global_variables_initializer()
     
     trackAcc = []
+    trackCost = []
     with tf.Session() as s: 
         s.run(init)
         xs_train, xs_test, ys_train, ys_test = load(version='1_3a', file_version='multiple')
@@ -77,6 +78,7 @@ def main():
             _, c = s.run([optimizer, cost], feed_dict={x: xs_train, y: ys_train})
             acc = s.run(accuracy, feed_dict={x: xs_test, y: ys_test})
             # track accuracy to display in graph when algorithm finished
+            trackCost.append(c)
             trackAcc.append(acc*100)
             print('Epoch:', '%04d' % (epoch+1), "completed with an accuracy of:", "{:.3f}".format(acc), "cost=", "{:.9f}".format(c))
         # evaluate accuary when all training steps are completed
@@ -91,10 +93,15 @@ def main():
         # create array that corresponds to the number of training steps as x-axis
         # y-axis is the accuracy in %
         a = np.arange(1, training_epochs+1)
+        ax.set_title('Test Accuracy')
         ax.plot(a, trackAcc, '-', label='Validation Accuracy')
         # add 2 helper lines (can be removed if unnecessary)
         plt.axhline(y=20, xmin=0, xmax=10, linestyle='--', color='k')
         plt.axhline(y=40, xmin=0, xmax=10, linestyle='--', color='k')
+        
+        bx = fig.add_subplot(2,1,2)
+        bx.set_title('Cost by Epoch')
+        bx.plot(a, trackCost, '-', label='Cost per Epoch')
         plt.show()
 
 # function to load the csv-data and construct the input array as return
