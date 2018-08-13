@@ -40,19 +40,34 @@ from lib.config import SCREEN_RESOLUTION, MINIMAP_RESOLUTION, MAP_PATH, \
 def main():
     replay_log_files = []
     match_arr = []
+    
+    # configure details for execution
+    # skip_remis is a boolean to determine whether the loading procedure should ignore samples that resulted in a remis
+    # file_version contains the information which version of the samples should be loaded(e.g. the single .csv-File containing all combats, or the .csv-files that contain one encounter each)
+    # version declares the version of replay samples to use
     skip_remis = False
+    file_version = 'single'
+    version = '1_3a'
+    
+    if file_version == 'multiple':
+        replay_log_files = []
+        
 
-    replay_log_files = build_file_array('logs', '1_3a')
-    i = 0
-    print('Looking over', len(replay_log_files), 'files')
-    while i < len(replay_log_files):
-        match_arr.append(read_csv(replay_log_files[i]))
-        i = i + 1
-        if i%10000 == 0:
-            print(i, 'csv-files loaded')
+        replay_log_files = build_file_array('logs', version)
+        i = 0
+        print('Looking over', len(replay_log_files), 'files')
+        while i < len(replay_log_files):
+            match_arr.append(read_csv(replay_log_files[i]))
+            i = i + 1
+            if i%10000 == 0:
+                print(i, 'csv-files loaded')
+
+        print('match_arr built...')
+    if file_version == 'single':
+        file_path = os.path.join(REPO_DIR, version, 'all_csv_from_version_' + version + '.csv')
+        match_arr = read_summed_up_csv(file_path)
     i = 0
     correct_pred = 0
-    print('match_arr built...')
     
     
     
@@ -181,7 +196,8 @@ def calc_hp_shield_armor(match):
     hitpoints_and_shield_ground = 0
     hitpoints_and_shield_air = 0
     for id in match:
-        if str(id) == '85':
+        id = int(id.replace("'",""))
+        if id == 85:
             continue
         unit = return_unit_values_by_id(id)
         if str(unit['type']) == 'g' or str(unit['type']) == 'ga':
@@ -194,7 +210,8 @@ def get_detection_and_invisibility(match):
     det = False
     inv = False
     for id in match:
-        if str(id) == '85':
+        id = int(id.replace("'",""))
+        if id == 85:
             continue
         unit = return_unit_values_by_id(id)
         if unit['det'] == 'y':
@@ -225,7 +242,8 @@ def calc_fightable(unit_types, attack_types, invis, det):
 def calc_attack_types(match):
     attack_type = []
     for id in match:
-        if str(id) == '85':
+        id = int(id.replace("'",""))
+        if id == 85:
             continue
         unit = return_unit_values_by_id(id)
         
@@ -240,7 +258,8 @@ def calc_attack_types(match):
 def calc_unit_types(match):
     unit_type = {'ground': 0, 'air': 0}
     for id in match:
-        if str(id) == '85':
+        id = int(id.replace("'",""))
+        if id == 85:
             continue
         unit = return_unit_values_by_id(id)
         if unit['type'] == 'a':
@@ -258,7 +277,8 @@ def calc_unit_bonus(match, t_B, ga):
     unit_power = 'pw_' + ga
     powervalue = 0
     for id in match:
-        if str(id) == '85':
+        id = int(id.replace("'",""))
+        if id == 85:
             continue
         unit = return_unit_values_by_id(id)
         bonus = 0
@@ -289,7 +309,8 @@ def calc_unit_bonus(match, t_B, ga):
 def calc_attributes(match):
     t_A = {'a' : 0, 'p': 0, 'm': 0, 'massive': 0, 'l': 0, 'b': 0, 'ges': 0}
     for id in match:
-        if str(id) == '85':
+        id = int(id.replace("'",""))
+        if id == 85:
             continue
         unit = return_unit_values_by_id(id)
         for t in unit['attributes']:
@@ -310,101 +331,101 @@ def calc_attributes(match):
     
 def return_unit_values_by_id(id):
     ###terran ids
-    if str(id) == '32' or str(id) == '33':
+    if id == 32 or id == 33:
         return siege_tank
-    if str(id) == '34' or str(id) == '35':
+    if id == 34 or id == 35:
         return viking
-    if str(id) == '45':
+    if id == 45:
         return scv
-    if str(id) == '48':
+    if id == 48:
         return marine
-    if str(id) == '49':
+    if id == 49:
         return reaper
-    if str(id) == '50':
+    if id == 50:
         return ghost
-    if str(id) == '51':
+    if id == 51:
         return marauder
-    if str(id) == '52':
+    if id == 52:
         return thor
-    if str(id) == '53' or str(id) == '484':
+    if id == 53 or id == 484:
         return hellion
-    if str(id) == '54':
+    if id == 54:
         return medivac
-    if str(id) == '55':
+    if id == 55:
         return banshee
-    if str(id) == '56':
+    if id == 56:
         return raven
-    if str(id) == '57':
+    if id == 57:
         return battlecruiser
-    if str(id) == '268':
+    if id == 268:
         return mule
-    if str(id) == '692':
+    if id == 692:
         return cyclone
     ###protoss ids
-    if str(id) == '4':
+    if id == 4:
         return colossus
-    if str(id) == '10':
+    if id == 10:
         return mothership
-    if str(id) == '73':
+    if id == 73:
         return zealot
-    if str(id) == '74':
+    if id == 74:
         return stalker
-    if str(id) == '75':
+    if id == 75:
         return high_templar
-    if str(id) == '76':
+    if id == 76:
         return dark_templar
-    if str(id) == '77':
+    if id == 77:
         return sentry
-    if str(id) == '78':
+    if id == 78:
         return phoenix
-    if str(id) == '79':
+    if id == 79:
         return carrier
-    if str(id) == '80':
+    if id == 80:
         return void_ray
-    if str(id) == '82':
+    if id == 82:
         return observer
-    if str(id) == '83':
+    if id == 83:
         return immortal
-    if str(id) == '84':
+    if id == 84:
         return probe
-    if str(id) == '141':
+    if id == 141:
         return archon
-    if str(id) == '311':
+    if id == 311:
         return adept
-    if str(id) == '694':
+    if id == 694:
         return disruptor
     ###zerg ids
-    if str(id) == '9':
+    if id == 9:
         return baneling
-    if str(id) == '12' or str(id) == '13' or str(id) == '15' or str(id) == '17':
+    if id == 12 or id == 13 or id == 15 or id == 17:
         return changeling
-    if str(id) == '104':
+    if id == 104:
         return drone
-    if str(id) == '105':
+    if id == 105:
         return zergling
-    if str(id) == '106':
+    if id == 106:
         return overlord
-    if str(id) == '107':
+    if id == 107:
         return hydralisk
-    if str(id) == '108':
+    if id == 108:
         return mutalisk
-    if str(id) == '109':
+    if id == 109:
         return ultralisk
-    if str(id) == '110':
+    if id == 110:
         return roach
-    if str(id) == '111':
+    if id == 111:
         return infestor
-    if str(id) == '112':
+    if id == 112:
         return corruptor
-    if str(id) == '114':
+    if id == 114:
         return brood_lord
-    if str(id) == '126':
+    if id == 126:
         return queen
-    if str(id) == '129':
+    if id == 129:
         return overseer
-    if str(id) == '289':
+    if id == 289:
         return broodling
-    if str(id) == '499':
+    if id == 499:
         return viper
 if __name__ == "__main__":
     main()

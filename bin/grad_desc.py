@@ -42,8 +42,8 @@ from lib.config import SCREEN_RESOLUTION, MINIMAP_RESOLUTION, MAP_PATH, \
     
 def main():
     #parameters
-    learning_rate = 0.01
-    training_epochs = 50
+    learning_rate = 0.25
+    training_epochs = 10
     #Graph Input
     x = tf.placeholder(tf.float32, [None, 94])
     y = tf.placeholder(tf.float32, [None, 3])
@@ -73,7 +73,7 @@ def main():
     trackL = []
     with tf.Session() as s: 
         s.run(init)
-        xs_train, xs_test, ys_train, ys_test = load(version='1_3a')
+        xs_train, xs_test, ys_train, ys_test = load(version='1_3a', file_version='multiple')
         for epoch in range(training_epochs):
             _, c = s.run([optimizer, cost], feed_dict={x: xs_train, y: ys_train})
             acc = s.run(accuracy, feed_dict={x: xs_test, y: ys_test})
@@ -105,36 +105,25 @@ def main():
         plt.axhline(y=40, xmin=0, xmax=10, linestyle='--', color='k')
         plt.show()
 
-def subset_of_weights(x, W):
-    
-    n = 0
-    subset = []
-    x = tf.placeholder(tf.float32, [None, 94])
-    W = tf.placeholder(tf.float32, [None, 94, 3])
-    while len(x) > n:
-        if x[n] != 0:
-            subset = np.append(subset, W[n])
-        n += 1
-    subset = tf.convert_to_tensor(subset, np.float32)
-    return subset
-
-def load(maxdef = 1000000, version = STANDARD_VERSION):
-
-
-    replay_log_files = []
+def load(version = STANDARD_VERSION, file_version='single'):
     match_arr = []
+    if file_version == 'multiple':
+        replay_log_files = []
+        
 
-    replay_log_files = build_file_array('logs', version)
-    i = 0
-    print('Looking over', len(replay_log_files), 'files')
-    while i < len(replay_log_files):
-        match_arr.append(read_csv(replay_log_files[i]))
-        i = i + 1
-        if i%10000 == 0:
-            print(i, 'csv-files loaded')
+        replay_log_files = build_file_array('logs', version)
+        i = 0
+        print('Looking over', len(replay_log_files), 'files')
+        while i < len(replay_log_files):
+            match_arr.append(read_csv(replay_log_files[i]))
+            i = i + 1
+            if i%10000 == 0:
+                print(i, 'csv-files loaded')
 
-    print('match_arr built...')
-    
+        print('match_arr built...')
+    if file_version == 'single':
+        file_path = os.path.join(REPO_DIR, version, 'all_csv_from_version_' + version + '.csv')
+        match_arr = read_summed_up_csv(file_path)
     unit_vector_A = np.zeros(47)
     unit_vector_B = np.zeros(47)
     xs = []
@@ -148,295 +137,294 @@ def load(maxdef = 1000000, version = STANDARD_VERSION):
             # continue
         try:
             for id in match['team_A']:
-                #if n < 30:
-                    #print(id)
-                    #n += 1
-                if str(id) == '85':
+                id = int(id.replace("'", ""))
+                if id == 85:
                     continue
-                if str(id) == '9':
+                if id == 9:
                     unit_vector_A[0] += 1
                     
-                if str(id) == '12' or str(id) == '13' or str(id) == '15' or str(id) == '17':
+                if id == 12 or id == 13 or id == 15 or id == 17:
                     unit_vector_A[1] += 1
                     
-                if str(id) == '104':
+                if id == 104:
                     unit_vector_A[2] += 1
                     
-                if str(id) == '105':
+                if id == 105:
                     unit_vector_A[3] += 1
                     
-                if str(id) == '106':
+                if id == 106:
                     unit_vector_A[4] += 1
                     
-                if str(id) == '107':
+                if id == 107:
                     unit_vector_A[5] += 1
                     
-                if str(id) == '108':
+                if id == 108:
                     unit_vector_A[6] += 1
                     
-                if str(id) == '109':
+                if id == 109:
                     unit_vector_A[7] += 1
                     
-                if str(id) == '110':
+                if id == 110:
                     unit_vector_A[8] += 1
                     
-                if str(id) == '111':
+                if id == 111:
                     unit_vector_A[9] += 1
                     
-                if str(id) == '112':
+                if id == 112:
                     unit_vector_A[10] += 1
                     
-                if str(id) == '114':
+                if id == 114:
                     unit_vector_A[11] += 1
                     
-                if str(id) == '126':
+                if id == 126:
                     unit_vector_A[12] += 1
                     
-                if str(id) == '129':
+                if id == 129:
                     unit_vector_A[13] += 1
                     
-                if str(id) == '289':
+                if id == 289:
                     unit_vector_A[14] += 1
                     
-                if str(id) == '499':
+                if id == 499:
                     unit_vector_A[15] += 1
                     
-                if str(id) == '4':
+                if id == 4:
                     unit_vector_A[16] += 1
                     
-                if str(id) == '10':
+                if id == 10:
                     unit_vector_A[17] += 1
                     
-                if str(id) == '73':
+                if id == 73:
                     unit_vector_A[18] += 1
                     
-                if str(id) == '74':
+                if id == 74:
                     unit_vector_A[19] += 1
                     
-                if str(id) == '75':
+                if id == 75:
                     unit_vector_A[20] += 1
                     
-                if str(id) == '76':
+                if id == 76:
                     unit_vector_A[21] += 1
                     
-                if str(id) == '77':
+                if id == 77:
                     unit_vector_A[22] += 1
                     
-                if str(id) == '78':
+                if id == 78:
                     unit_vector_A[23] += 1
                     
-                if str(id) == '79':
+                if id == 79:
                     unit_vector_A[24] += 1
                     
-                if str(id) == '80':
+                if id == 80:
                     unit_vector_A[25] += 1
                     
-                if str(id) == '82':
+                if id == 82:
                     unit_vector_A[26] += 1
                     
-                if str(id) == '83':
+                if id == 83:
                     unit_vector_A[27] += 1
                     
-                if str(id) == '84':
+                if id == 84:
                     unit_vector_A[28] += 1
                     
-                if str(id) == '141':
+                if id == 141:
                     unit_vector_A[29] += 1
                     
-                if str(id) == '311':
+                if id == 311:
                     unit_vector_A[30] += 1
                     
-                if str(id) == '694':
+                if id == 694:
                     unit_vector_A[31] += 1
                     
-                if str(id) == '32' or str(id) == '33':
+                if id == 32 or id == 33:
                     unit_vector_A[32] += 1
                     
-                if str(id) == '34' or str(id) == '35':
+                if id == 34 or id == 35:
                     unit_vector_A[33] += 1
                     
-                if str(id) == '45':
+                if id == 45:
                     unit_vector_A[34] += 1
                     
-                if str(id) == '48':
+                if id == 48:
                     unit_vector_A[35] += 1
                     
-                if str(id) == '49':
+                if id == 49:
                     unit_vector_A[36] += 1
                     
-                if str(id) == '50':
+                if id == 50:
                     unit_vector_A[37] += 1
                     
-                if str(id) == '51':
+                if id == 51:
                     unit_vector_A[38] += 1
                     
-                if str(id) == '52':
+                if id == 52:
                     unit_vector_A[39] += 1
                     
-                if str(id) == '53' or str(id) == '484':
+                if id == 53 or id == 484:
                     unit_vector_A[40] += 1
                     
-                if str(id) == '54':
+                if id == 54:
                     unit_vector_A[41] += 1
                     
-                if str(id) == '55':
+                if id == 55:
                     unit_vector_A[42] += 1
                     
-                if str(id) == '56':
+                if id == 56:
                     unit_vector_A[43] += 1
                     
-                if str(id) == '57':
+                if id == 57:
                     unit_vector_A[44] += 1
                     
-                if str(id) == '268':
+                if id == 268:
                     unit_vector_A[45] += 1
                     
-                if str(id) == '692':
+                if id == 692:
                     unit_vector_A[46] += 1
                     
             for id in match['team_B']:
-                if str(id) == '85':
+                id = int(id.replace("'", ""))
+                if id == 85:
                     continue
                     
-                if str(id) == '9':
+                if id == 9:
                     unit_vector_B[0] += 1
                     
-                if str(id) == '12' or str(id) == '13' or str(id) == '15' or str(id) == '17':
+                if id == 12 or id == 13 or id == 15 or id == 17:
                     unit_vector_B[1] += 1
                     
-                if str(id) == '104':
+                if id == 104:
                     unit_vector_B[2] += 1
                     
-                if str(id) == '105':
+                if id == 105:
                     unit_vector_B[3] += 1
                     
-                if str(id) == '106':
+                if id == 106:
                     unit_vector_B[4] += 1
                     
-                if str(id) == '107':
+                if id == 107:
                     unit_vector_B[5] += 1
                     
-                if str(id) == '108':
+                if id == 108:
                     unit_vector_B[6] += 1
                     
-                if str(id) == '109':
+                if id == 109:
                     unit_vector_B[7] += 1
                     
-                if str(id) == '110':
+                if id == 110:
                     unit_vector_B[8] += 1
                     
-                if str(id) == '111':
+                if id == 111:
                     unit_vector_B[9] += 1
                     
-                if str(id) == '112':
+                if id == 112:
                     unit_vector_B[10] += 1
                     
-                if str(id) == '114':
+                if id == 114:
                     unit_vector_B[11] += 1
                     
-                if str(id) == '126':
+                if id == 126:
                     unit_vector_B[12] += 1
                     
-                if str(id) == '129':
+                if id == 129:
                     unit_vector_B[13] += 1
                     
-                if str(id) == '289':
+                if id == 289:
                     unit_vector_B[14] += 1
                     
-                if str(id) == '499':
+                if id == 499:
                     unit_vector_B[15] += 1
                     
-                if str(id) == '4':
+                if id == 4:
                     unit_vector_B[16] += 1
                     
-                if str(id) == '10':
+                if id == 10:
                     unit_vector_B[17] += 1
                     
-                if str(id) == '73':
+                if id == 73:
                     unit_vector_B[18] += 1
                     
-                if str(id) == '74':
+                if id == 74:
                     unit_vector_B[19] += 1
                     
-                if str(id) == '75':
+                if id == 75:
                     unit_vector_B[20] += 1
                     
-                if str(id) == '76':
+                if id == 76:
                     unit_vector_B[21] += 1
                     
-                if str(id) == '77':
+                if id == 77:
                     unit_vector_B[22] += 1
                     
-                if str(id) == '78':
+                if id == 78:
                     unit_vector_B[23] += 1
                     
-                if str(id) == '79':
+                if id == 79:
                     unit_vector_B[24] += 1
                     
-                if str(id) == '80':
+                if id == 80:
                     unit_vector_B[25] += 1
                     
-                if str(id) == '82':
+                if id == 82:
                     unit_vector_B[26] += 1
                     
-                if str(id) == '83':
+                if id == 83:
                     unit_vector_B[27] += 1
                     
-                if str(id) == '84':
+                if id == 84:
                     unit_vector_B[28] += 1
                     
-                if str(id) == '141':
+                if id == 141:
                     unit_vector_B[29] += 1
                     
-                if str(id) == '311':
+                if id == 311:
                     unit_vector_B[30] += 1
                     
-                if str(id) == '694':
+                if id == 694:
                     unit_vector_B[31] += 1
                     
-                if str(id) == '32' or str(id) == '33':
+                if id == 32 or id == 33:
                     unit_vector_B[32] += 1
                     
-                if str(id) == '34' or str(id) == '35':
+                if id == 34 or id == 35:
                     unit_vector_B[33] += 1
                     
-                if str(id) == '45':
+                if id == 45:
                     unit_vector_B[34] += 1
                     
-                if str(id) == '48':
+                if id == 48:
                     unit_vector_B[35] += 1
                     
-                if str(id) == '49':
+                if id == 49:
                     unit_vector_B[36] += 1
                     
-                if str(id) == '50':
+                if id == 50:
                     unit_vector_B[37] += 1
                     
-                if str(id) == '51':
+                if id == 51:
                     unit_vector_B[38] += 1
                     
-                if str(id) == '52':
+                if id == 52:
                     unit_vector_B[39] += 1
                     
-                if str(id) == '53' or str(id) == '484':
+                if id == 53 or id == 484:
                     unit_vector_B[40] += 1
                     
-                if str(id) == '54':
+                if id == 54:
                     unit_vector_B[41] += 1
                     
-                if str(id) == '55':
+                if id == 55:
                     unit_vector_B[42] += 1
                     
-                if str(id) == '56':
+                if id == 56:
                     unit_vector_B[43] += 1
                     
-                if str(id) == '57':
+                if id == 57:
                     unit_vector_B[44] += 1
                     
-                if str(id) == '268':
+                if id == 268:
                     unit_vector_B[45] += 1
                     
-                if str(id) == '692':
+                if id == 692:
                     unit_vector_B[46] += 1
 
             unit_vector = np.append(unit_vector_A, unit_vector_B) 

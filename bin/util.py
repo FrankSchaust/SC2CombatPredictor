@@ -111,7 +111,7 @@ def play_replay(dir, version):
                         controller.step(8)
                         time.sleep(1)
                         obs = controller.observe()
-                        
+# Function to read one encouter per file .csv-files
 def read_csv(csv_file):
 
     file = open(csv_file, 'r')
@@ -131,6 +131,8 @@ def read_csv(csv_file):
 def string_to_csv(str):
     str = str.replace('[', '').replace(']', '').replace(' ', '')
     arr = str.split(',')
+    for elem in arr:
+        elem = int(elem.replace("'", ""))
     return arr
 
 def sum_up_csv_files(version = STANDARD_VERSION):
@@ -154,3 +156,32 @@ def sum_up_csv_files(version = STANDARD_VERSION):
                 writer.writerow( (match['team_A'], match['team_B'], match['winner_code']) )
         finally:
             file.close()
+# Function for reading the summed up .csv-files (all encounters of one specified version contained in one file)
+def read_summed_up_csv(csv_file):
+    match_arr = []
+    try:
+        file = open(csv_file, 'r')
+    except:
+        print("Loading failed")
+    csv_reader = csv.reader(file, delimiter=',')
+    for row in csv_reader:
+        try:
+            if row[0] == '':
+                continue
+        except: 
+            continue
+        i = 0
+        first_split = 0
+        second_split = 0
+        for entry in row:
+            if i == 0:
+                team_a = entry
+            if i == 1:
+                team_b = entry
+            if i == 2:
+                winner = entry
+            i += 1
+        dict = {'team_A': string_to_csv(team_a), 'team_B': string_to_csv(team_b), 'winner_code': winner}
+        match_arr.append(dict)
+    file.close()
+    return match_arr   
