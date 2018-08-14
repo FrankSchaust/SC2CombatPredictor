@@ -125,7 +125,7 @@ def load(version = STANDARD_VERSION, file_version='single'):
 
         print('match_arr built...')
     if file_version == 'single':
-        file_path = os.path.join(REPO_DIR, version, 'all_csv_from_version_' + version + '.csv')
+        file_path = os.path.join(REPO_DIR, 'all_csv_from_version_' + version + '.csv')
         match_arr = read_summed_up_csv(file_path)
     unit_vector_A = np.zeros(47)
     unit_vector_B = np.zeros(47)
