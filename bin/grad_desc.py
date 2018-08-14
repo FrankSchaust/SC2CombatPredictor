@@ -72,7 +72,7 @@ def main():
     trackCost = []
     with tf.Session() as s: 
         s.run(init)
-        xs_train, xs_test, ys_train, ys_test = load(version='1_3a', file_version='multiple')
+        xs_train, xs_test, ys_train, ys_test = load(version='1_3a')
         # loop to train for specified number of epochs
         for epoch in range(training_epochs):
             _, c = s.run([optimizer, cost], feed_dict={x: xs_train, y: ys_train})
