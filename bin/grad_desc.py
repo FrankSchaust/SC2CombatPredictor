@@ -41,9 +41,19 @@ from lib.config import SCREEN_RESOLUTION, MINIMAP_RESOLUTION, MAP_PATH, \
     REPLAYS_PARSED_DIR, REPLAY_DIR, REPO_DIR, STANDARD_VERSION
     
 def main():
-    # parameters
-    learning_rate = 0.05
-    training_epochs = 100
+    learning_rates = np.arange(0.003, 0.005, 0.0005)
+    training_epochs = 1000
+    
+    trackAcc = []
+    trackAccs = []
+    trackCost = []
+    trackCosts = []
+    for learning_rate in learning_rates:
+        trackAcc, trackCost = run_grad_desc(learning_rate, training_epochs)
+        trackAccs.append(trackAcc)
+        trackCosts.append(trackCost)
+    create_graphs(trackAccs, trackCosts, learning_rates, training_epochs)
+def run_grad_desc(learning_rate=0.5, training_epochs = 10):
     # Graph Input
     x = tf.placeholder(tf.float32, [None, 94])
     y = tf.placeholder(tf.float32, [None, 3])
@@ -85,7 +95,8 @@ def main():
         print ("Accuracy:", accuracy.eval({x: xs_test, y: ys_test}))
         
         trackAcc = np.array(trackAcc)
-        
+        return trackAcc, trackCost
+def create_graphs(trackAcc, trackCost, learning_rate, training_epochs=10):
         # create graph
         fig = plt.figure(figsize=plt.figaspect(4.))
         # add plot
@@ -94,14 +105,17 @@ def main():
         # y-axis is the accuracy in %
         a = np.arange(1, training_epochs+1)
         ax.set_title('Test Accuracy')
-        ax.plot(a, trackAcc, '-', label='Validation Accuracy')
-        # add 2 helper lines (can be removed if unnecessary)
-        plt.axhline(y=20, xmin=0, xmax=10, linestyle='--', color='k')
-        plt.axhline(y=40, xmin=0, xmax=10, linestyle='--', color='k')
-        
+        i = 0
+        for acc in trackAcc:
+            ax.plot(a, acc, '-', label=learning_rate[i])
+            i += 1
+            
         bx = fig.add_subplot(2,1,2)
         bx.set_title('Cost by Epoch')
-        bx.plot(a, trackCost, '-', label='Cost per Epoch')
+        i = 0
+        for cost in trackCost:
+            bx.plot(a, cost, '-', label=learning_rate[i])
+            i += 1
         plt.show()
 
 # function to load the csv-data and construct the input array as return
@@ -126,7 +140,7 @@ def load(version = STANDARD_VERSION, file_version='single'):
         print('match_arr built...')
     if file_version == 'single':
         file_path = os.path.join(REPO_DIR, 'all_csv_from_version_' + version + '.csv')
-        match_arr = read_summed_up_csv(file_path)
+        match_arr = read_summed_up_csv(file_path, 250)
     unit_vector_A = np.zeros(47)
     unit_vector_B = np.zeros(47)
     xs = []
