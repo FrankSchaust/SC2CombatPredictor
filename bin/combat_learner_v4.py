@@ -80,7 +80,6 @@ def run_cnn(replay_parsed_files, learning_rate, epochs, batches, batch_size, cap
         dense2_bn = tf.layers.batch_normalization(inputs=dense2, training=True)
         
         y_conv = tf.layers.dense(inputs=dense2_bn, units=num_classes)
-        
     y_ = tf.nn.softmax(y_conv)
        
     cross_entropy = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(logits=y_conv, labels=y))

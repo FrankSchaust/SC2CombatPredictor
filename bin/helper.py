@@ -1,7 +1,8 @@
 from bin.util import *
-
+from lib.config import REPO_DIR
 def main():
-    sum_up_csv_files('1_3a')
+    file_path = os.path.join(REPO_DIR, '1_3a', 'all_csv_from_version_1_3a.csv')
+    print(read_summed_up_csv(file_path))
     
  
 if __name__ == "__main__":

@@ -157,14 +157,17 @@ def sum_up_csv_files(version = STANDARD_VERSION):
         finally:
             file.close()
 # Function for reading the summed up .csv-files (all encounters of one specified version contained in one file)
-def read_summed_up_csv(csv_file):
-    match_arr = []
+def read_summed_up_csv(csv_file, maximum = 0):
+    match_arr = []    
     try:
         file = open(csv_file, 'r')
     except:
         print("Loading failed")
     csv_reader = csv.reader(file, delimiter=',')
+    counter = 0 
     for row in csv_reader:
+        if counter >= maximum and maximum != 0:
+            break;
         try:
             if row[0] == '':
                 continue
@@ -183,5 +186,7 @@ def read_summed_up_csv(csv_file):
             i += 1
         dict = {'team_A': string_to_csv(team_a), 'team_B': string_to_csv(team_b), 'winner_code': winner}
         match_arr.append(dict)
+        counter += 1
+       
     file.close()
     return match_arr   
