@@ -1,8 +1,11 @@
 from bin.util import *
 from lib.config import REPO_DIR
 def main():
-    file_path = os.path.join(REPO_DIR, '1_3a', 'all_csv_from_version_1_3a.csv')
-    print(read_summed_up_csv(file_path))
+
+        
+    replay_parsed_files = []
+    replay_parsed_files = build_file_array(version='1_3a')
+    print(len(filter_close_matchups(replay_parsed_files)))
     
  
 if __name__ == "__main__":

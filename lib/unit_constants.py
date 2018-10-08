@@ -67,7 +67,10 @@ reaper = {
     'type': 'g',
     'target': 'g',
     'det': 'n',
-    'inv': 'n'
+    'inv': 'n',
+    'min': 50,
+    'gas': 50,
+    'supply': 1
     }
 marauder = {
     'attributes': ['a', 'b'],
@@ -80,7 +83,10 @@ marauder = {
     'target': 'g',
     'det': 'n',
     'inv': 'n',
-    'bonus': ['a', 9.3, 'g']
+    'bonus': ['a', 9.3, 'g'],
+    'min': 100,
+    'gas': 25,
+    'supply': 2
     }
 marine = {
     'attributes': ['b', 'l'],
@@ -92,7 +98,10 @@ marine = {
     'type': 'g',
     'target': 'ga',
     'det': 'n',
-    'inv': 'n'
+    'inv': 'n',
+    'min': 50,
+    'gas': 0,
+    'supply': 1
     }
 ghost = {
     'attributes': ['b', 'p'],
@@ -105,7 +114,10 @@ ghost = {
     'target': 'ga',
     'det': 'n',
     'inv': 'n',
-    'bonus': ['l', 9.3, 'ga']
+    'bonus': ['l', 9.3, 'ga'],
+    'min': 150,
+    'gas': 125,
+    'supply': 2
     }
 mule = {
     'attributes': ['l', 'm'],
@@ -117,7 +129,10 @@ mule = {
     'type': 'g',
     'target': 'n',
     'det': 'n',
-    'inv': 'n'
+    'inv': 'n',
+    'min': 0,
+    'gas': 0,
+    'supply': 0
     }
 scv = {
     'attributes': ['b', 'l', 'm'],
@@ -129,7 +144,10 @@ scv = {
     'type': 'g',
     'target': 'g',
     'det': 'n',
-    'inv': 'n'
+    'inv': 'n',
+    'min': 50,
+    'gas': 0,
+    'supply': 1
     }
 raven = {
     'attributes': ['l', 'm', 'd'],
@@ -141,7 +159,10 @@ raven = {
     'type': 'a',
     'target': 'n',
     'det': 'y',
-    'inv': 'n'
+    'inv': 'n',
+    'min': 100,
+    'gas': 200,
+    'supply': 2
     }
 banshee = {
     'attributes': ['l', 'm'],
@@ -153,7 +174,10 @@ banshee = {
     'type': 'a',
     'target': 'g',
     'det': 'n',
-    'inv': 'n'
+    'inv': 'n',
+    'min': 150,
+    'gas': 100,
+    'supply': 3
     }
 medivac = {
     'attributes': ['a', 'm'],
@@ -165,7 +189,10 @@ medivac = {
     'type': 'a',
     'target': 'n',
     'det': 'n',
-    'inv': 'n'
+    'inv': 'n',
+    'min': 100,
+    'gas': 100,
+    'supply': 2
     }
 viking = {
     'attributes': ['a', 'm'],
@@ -178,7 +205,10 @@ viking = {
     'target': 'a',
     'det': 'n',
     'inv': 'n',
-    'bonus': ['a', 5.6, 'a']
+    'bonus': ['a', 5.6, 'a'],
+    'min': 150,
+    'gas': 75,
+    'supply': 2
     }
 battlecruiser = {
     'attributes': ['a', 'm', 'massive'],
@@ -190,7 +220,10 @@ battlecruiser = {
     'type': 'a',
     'target': 'ga',
     'det': 'n',
-    'inv': 'n'
+    'inv': 'n',
+    'min': 400,
+    'gas': 300,
+    'supply': 6
     }
 thor = {
     'attributes': ['a', 'm', 'massive'],
@@ -203,7 +236,10 @@ thor = {
     'target': 'ga',
     'det': 'n',
     'inv': 'n',
-    'bonus': ['l', 11.2, 'a']
+    'bonus': ['l', 11.2, 'a'],
+    'min': 300,
+    'gas': 200,
+    'supply': 6
     }
 siege_tank = {
     'attributes': ['a', 'm'],
@@ -216,7 +252,10 @@ siege_tank = {
     'target': 'g',
     'det': 'n',
     'inv': 'n',
-    'bonus': ['a', 13.51]
+    'bonus': ['a', 13.51],
+    'min': 150,
+    'gas': 125,
+    'supply': 3
     }
 hellion = {
     'attributes': ['l', 'm'],
@@ -229,7 +268,10 @@ hellion = {
     'target': 'g',
     'det': 'n',
     'inv': 'n',
-    'bonus': ['l', 3.4]
+    'bonus': ['l', 3.4],
+    'min': 100,
+    'gas': 0,
+    'supply': 2
     }
 cyclone = {
     'attributes': ['a', 'm'],
@@ -242,7 +284,10 @@ cyclone = {
     'target': 'g',
     'det': 'n',
     'inv': 'n',
-    'bonus': ['a', 20, 'g']
+    'bonus': ['a', 20, 'g'],
+    'min': 150,
+    'gas': 100,
+    'supply': 3
     }
 
 ### Constants for Protoss Units
@@ -256,7 +301,10 @@ mothership = {
     'type': 'a',
     'target': 'ga',
     'det': 'n',
-    'inv': 'y'
+    'inv': 'y',
+    'min': 400,
+    'gas': 400,
+    'supply': 8
     }
 void_ray = {
     'attributes': ['a', 'm'], 
@@ -269,7 +317,10 @@ void_ray = {
     'target': 'ga',
     'det': 'n',
     'inv': 'n',
-    'bonus': ['a', 11.2, 'ga']
+    'bonus': ['a', 11.2, 'ga'],
+    'min': 250,
+    'gas': 150,
+    'supply': 4
     }
 dark_templar = {
     'attributes': ['b', 'l', 'p'],
@@ -281,7 +332,10 @@ dark_templar = {
     'type': 'g',
     'target': 'g',
     'det': 'n',
-    'inv': 'y'
+    'inv': 'y',
+    'min': 125,
+    'gas': 125,
+    'supply': 2
     }
 carrier = {
     'attributes': ['a', 'massive', 'm'],
@@ -293,7 +347,10 @@ carrier = {
     'type': 'a',
     'target': 'ga',
     'det': 'n',
-    'inv': 'n'
+    'inv': 'n',
+    'min': 350,
+    'gas': 250,
+    'supply': 6
     }
 colossus = {
     'attributes': ['a', 'massive', 'm'],
@@ -306,7 +363,10 @@ colossus = {
     'target': 'g',
     'det': 'n',
     'inv': 'n',
-    'bonus': ['l', 9.3, 'g']
+    'bonus': ['l', 9.3, 'g'],
+    'min': 300,
+    'gas': 200,
+    'supply': 6
     }
 zealot = {
     'attributes': ['l', 'b'],
@@ -318,7 +378,10 @@ zealot = {
     'type': 'g',
     'target': 'g',
     'det': 'n',
-    'inv': 'n'
+    'inv': 'n',
+    'min': 100,
+    'gas': 0,
+    'supply': 2
     }
 probe = {
     'attributes': ['l', 'm'],
@@ -330,7 +393,10 @@ probe = {
     'type': 'g',
     'target': 'g',
     'det': 'n',
-    'inv': 'n'
+    'inv': 'n',
+    'min': 50,
+    'gas': 0,
+    'supply': 1
     }
 phoenix = {
     'attributes': ['l', 'm'],
@@ -343,7 +409,10 @@ phoenix = {
     'target': 'a',
     'det': 'n',
     'inv': 'n',
-    'bonus': ['l', 12.7, 'a']
+    'bonus': ['l', 12.7, 'a'],
+    'min': 150,
+    'gas': 100,
+    'supply': 2
     }
 archon = {
     'attributes': ['massive', 'p'],
@@ -356,7 +425,10 @@ archon = {
     'target': 'ga',
     'det': 'n',
     'inv': 'n',
-    'bonus': ['b', 8, 'ga']
+    'bonus': ['b', 8, 'ga'],
+    'min': 250,
+    'gas': 250,
+    'supply': 4
     }
 immortal = {
     'attributes': ['a', 'm'],
@@ -369,7 +441,10 @@ immortal = {
     'target': 'g',
     'det': 'n',
     'inv': 'n',
-    'bonus': ['a', 28.9, 'g']
+    'bonus': ['a', 28.9, 'g'],
+    'min': 250,
+    'gas': 100,
+    'supply': 4
     }
 observer = {
     'attributes': ['l', 'm', 'd'],
@@ -381,7 +456,10 @@ observer = {
     'type': 'a',
     'target': 'n',
     'det': 'y',
-    'inv': 'y'
+    'inv': 'y',
+    'min': 25,
+    'gas': 75,
+    'supply': 1
     }
 high_templar = {
     'attributes': ['b', 'l', 'p'],
@@ -393,7 +471,10 @@ high_templar = {
     'type': 'g',
     'target': 'g',
     'det': 'n',
-    'inv': 'n'
+    'inv': 'n',
+    'min': 50,
+    'gas': 150,
+    'supply': 2
     }
 stalker = {
     'attributes': ['a', 'm'],
@@ -406,9 +487,12 @@ stalker = {
     'target': 'ga',
     'det': 'n',
     'inv': 'n',
-    'bonus': ['a', 3.7, 'ga']
+    'bonus': ['a', 3.7, 'ga'],
+    'min': 125,
+    'gas': 50,
+    'supply': 2
     } 
-disrtuptor = {
+disruptor = {
     'attributes': ['a', 'm'],
     'pw_g': 0,
     'pw_a': 0,
@@ -418,7 +502,10 @@ disrtuptor = {
     'type': 'g',
     'target': 'n',
     'det': 'n',
-    'inv': 'n'
+    'inv': 'n',
+    'min': 150,
+    'gas': 150,
+    'supply': 3
     }
 sentry = {
     'attributes': ['p', 'm', 'l'],
@@ -430,7 +517,10 @@ sentry = {
     'type': 'g',
     'target': 'ga',
     'det': 'n',
-    'inv': 'n'
+    'inv': 'n',
+    'min': 50,
+    'gas': 100,
+    'supply': 2
     }
 adept = {
     'attributes': ['l', 'b'],
@@ -443,7 +533,10 @@ adept = {
     'target': 'g',
     'det': 'n',
     'inv': 'n',
-    'bonus': ['l', 7.45, 'g']
+    'bonus': ['l', 7.45, 'g'],
+    'min': 100,
+    'gas': 25,
+    'supply': 2
     }
 ###Constants for Zerg Units   
 drone = {
@@ -456,7 +549,10 @@ drone = {
     'type': 'g',
     'target': 'g',
     'det': 'n',
-    'inv': 'n'
+    'inv': 'n',
+    'min': 50,
+    'gas': 0,
+    'supply': 1
     }
 queen = {
     'attributes': ['p', 'b'],
@@ -468,7 +564,10 @@ queen = {
     'type': 'g',
     'target': 'ga',
     'det': 'n',
-    'inv': 'n'
+    'inv': 'n',
+    'min': 150,
+    'gas': 0,
+    'supply': 2
     }
 zergling = {
     'attributes': ['l', 'b'],
@@ -480,7 +579,10 @@ zergling = {
     'type': 'g',
     'target': 'g',
     'det': 'n',
-    'inv': 'n'
+    'inv': 'n',
+    'min': 25,
+    'gas': 0,
+    'supply': 0.5
     }
 baneling = {
     'attributes': ['b'],
@@ -493,7 +595,10 @@ baneling = {
     'target': 'g',
     'det': 'n',
     'inv': 'n',
-    'bonus':['l', 15, 'g']
+    'bonus':['l', 15, 'g'],
+    'min': 50,
+    'gas': 25,
+    'supply': 0.5
     }
 roach = {
     'attributes': ['a', 'b'],
@@ -505,7 +610,10 @@ roach = {
     'type': 'g',
     'target': 'g',
     'det': 'n',
-    'inv': 'n'
+    'inv': 'n',
+    'min': 75,
+    'gas': 25,
+    'supply': 2
     }
 ravager = {
     'attributes': ['b'],
@@ -517,7 +625,10 @@ ravager = {
     'type': 'g',
     'target': 'g',
     'det': 'n',
-    'inv': 'n'
+    'inv': 'n',
+    'min': 100,
+    'gas': 100,
+    'supply': 3
     }
 hydralisk = {
     'attributes': ['l', 'b'],
@@ -529,7 +640,10 @@ hydralisk = {
     'type': 'g',
     'target': 'ga',
     'det': 'n',
-    'inv': 'n'
+    'inv': 'n',
+    'min': 100,
+    'gas': 50,
+    'supply': 2
     }
 lurker = {
     'attributes': ['a', 'b'],
@@ -542,7 +656,10 @@ lurker = {
     'target': 'g',
     'det': 'n',
     'inv': 'n',
-    'bonus': ['a', 7, 'g']
+    'bonus': ['a', 7, 'g'],
+    'min': 150,
+    'gas': 150,
+    'supply': 3
     }
 infestor = {
     'attributes': ['a', 'p', 'b'],
@@ -554,7 +671,10 @@ infestor = {
     'type': 'g',
     'target': 'n',
     'det': 'n',
-    'inv': 'n'
+    'inv': 'n',
+    'min': 100,
+    'gas': 150,
+    'supply': 2
     }
 swarm_host = {
     'attributes': ['a', 'b'],
@@ -566,7 +686,10 @@ swarm_host = {
     'type': 'g',
     'target': 'n',
     'det': 'n',
-    'inv': 'n'
+    'inv': 'n',
+    'min': 100,
+    'gas': 75,
+    'supply': 3
     }
 ultralisk = {
     'attributes': ['a', 'b', 'massive'],
@@ -579,6 +702,9 @@ ultralisk = {
     'target': 'g',
     'det': 'n',
     'inv': 'n',
+    'min': 300,
+    'gas': 200,
+    'supply': 6
     }
 broodling = {
     'attributes': ['l', 'b'],
@@ -590,7 +716,10 @@ broodling = {
     'type': 'g',
     'target': 'g',
     'det': 'n',
-    'inv': 'n'
+    'inv': 'n',
+    'min': 0,
+    'gas': 0,
+    'supply': 0
     }
 changeling = {
     'attributes': ['l', 'b'],
@@ -602,7 +731,10 @@ changeling = {
     'type': 'g',
     'target': 'n',
     'det': 'n',
-    'inv': 'y'
+    'inv': 'y',
+    'min': 0,
+    'gas': 0,
+    'supply': 0
     }
 overlord  = {
     'attributes': ['a', 'b'],
@@ -614,7 +746,10 @@ overlord  = {
     'type': 'a',
     'target': 'n',
     'det': 'n',
-    'inv': 'n'
+    'inv': 'n',
+    'min': 100,
+    'gas': 0,
+    'supply': 0
     }
 overseer = {
     'attributes': ['a', 'b', 'd'],
@@ -626,7 +761,10 @@ overseer = {
     'type': 'a',
     'target': 'n',
     'det': 'y',
-    'inv': 'n'
+    'inv': 'n',
+    'min': 150,
+    'gas': 50,
+    'supply': 0
     }
 mutalisk = {
     'attributes': ['l', 'b'],
@@ -638,7 +776,10 @@ mutalisk = {
     'type': 'a',
     'target': 'ga',
     'det': 'n',
-    'inv': 'n'
+    'inv': 'n',
+    'min': 100,
+    'gas': 100,
+    'supply': 2
     }
 corruptor = {
     'attributes': ['a', 'b'],
@@ -651,7 +792,10 @@ corruptor = {
     'target': 'a',
     'det': 'n',
     'inv': 'n',
-    'bonus': ['massive', 4.4, 'a']
+    'bonus': ['massive', 4.4, 'a'],
+    'min': 150,
+    'gas': 100,
+    'supply': 2
     }
 brood_lord = {
     'attributes': ['a', 'b', 'massive'],
@@ -663,7 +807,10 @@ brood_lord = {
     'type': 'a',
     'target': 'g',
     'det': 'n',
-    'inv': 'n'
+    'inv': 'n',
+    'min': 300,
+    'gas': 250,
+    'supply': 4
     }
 viper  = {
     'attributes': ['a', 'b', 'p'],
@@ -675,5 +822,8 @@ viper  = {
     'type': 'a',
     'target': 'n',
     'det': 'n',
-    'inv': 'n'
+    'inv': 'n',
+    'min': 100,
+    'gas': 200,
+    'supply': 3
     }

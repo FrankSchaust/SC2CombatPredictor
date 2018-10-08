@@ -18,6 +18,7 @@ import sys
 import gzip
 import time
 import csv
+import random
 import pandas as pd
 from absl import app
 
@@ -27,7 +28,8 @@ from s2clientprotocol.common_pb2 import Size2DI
 from s2clientprotocol.sc2api_pb2 import InterfaceOptions, RequestStartReplay, \
     SpatialCameraSetup
 
-from bin.read_csv import *    
+from bin.read_csv import *
+from lib.unit_constants import *
 from lib.config import SCREEN_RESOLUTION, MINIMAP_RESOLUTION, MAP_PATH, \
     REPLAYS_PARSED_DIR, REPLAY_DIR, REPO_DIR, STANDARD_VERSION
 from data.simulation_pb2 import Battle, Simulation
@@ -38,31 +40,80 @@ from data.simulation_pb2 import Battle, Simulation
 #       Or: 'logs' to build a file_array containing the logs names
 # version = String to define the version of the data; refers to the suffix of the folders specified 'log_v1_3' is specified by '_v1_3'
 # Return: Array with all files in the given directory 
-def build_file_array(type = 'replays', version = STANDARD_VERSION):
+def build_file_array(type = 'replays', version = [STANDARD_VERSION]):
     file_array = []
+    DIRECTORY = []
+    PATH = []
     # Routine for replay data
     if type == 'replays':
-        if version == '':
-            DIRECTORY = os.path.join(REPLAYS_PARSED_DIR)
+        if version == []:
+            DIRECTORY.append(os.path.join(REPLAYS_PARSED_DIR))
         else:
-            DIRECTORY = os.path.join(REPLAYS_PARSED_DIR, version)
+            for v in version:
+                DIRECTORY.append(os.path.join(REPLAYS_PARSED_DIR, v))
         print("Creating list of used files")
-        for root, dir, files in os.walk(DIRECTORY):
-            for file in files:
-                if file.endswith(".SC2Replay_parsed.gz"):
-                    file_array.append(os.path.join(root, file))
+        for d in DIRECTORY:
+            for root, dir, files in os.walk(d):
+                for file in files:
+                    if file.endswith(".SC2Replay_parsed.gz"):
+                        file_array.append(os.path.join(root, file))
         print("Available Files: ", len(file_array))
     # Routine for log data    
     if type == 'logs':
-        if version == '':
-            PATH = os.path.join(REPO_DIR, 'log')
+        if version == []:
+            PATH.append(os.path.join(REPO_DIR, 'log'))
         else:
-            PATH = os.path.join(REPO_DIR, 'log', version)
-        for root, dir, files in os.walk(PATH):
-            for file in files:
-                if file.endswith(".csv"):
-                    file_array.append(os.path.join(root, file))
+            for v in version:
+                PATH.append(os.path.join(REPO_DIR, 'log', v))
+        for p in PATH:
+            for root, dir, files in os.walk(p):
+                for file in files:
+                    if file.endswith(".csv"):
+                        file_array.append(os.path.join(root, file))
     return file_array
+    
+def generate_random_indices(file_count = 0, cap = 0, split_ratio = 0.9):
+    file_array = random.sample(range(0, file_count-1), cap)
+    split = int(len(file_array) * (1-split_ratio))
+    train_file_array = file_array[:-(split+1)]
+    test_file_array = file_array[-(split+1):]
+    
+    return train_file_array, test_file_array
+    
+def filter_close_matchups(replays = [], supply_limit = 0, version = STANDARD_VERSION):
+    i = 0
+    close_matchups = []
+    supply_diff = []
+    while i < len(replays):
+        LOG_SINGLE = os.path.join(REPO_DIR, 'log', version, os.path.relpath(replays[i], os.path.join(REPLAYS_PARSED_DIR, version)).replace('.SC2Replay_parsed.gz', '.csv'))
+        match = read_csv(LOG_SINGLE)
+        supply = {}
+        for side in {"A", "B"}:
+            supply[side] = 0
+            team = 'team_' + side
+            for unit in match[team]:
+                if int(unit) == 85:
+                    continue
+                unit_val = return_unit_values_by_id(int(unit))
+                supply[side] += unit_val['supply']
+        if abs(supply["A"]-supply["B"]) < supply_limit:
+            close_matchups.append(replays[i])
+            supply_diff.append(abs(supply["A"]-supply["B"]))
+        
+            #print(replays[i], supply["A"], supply["B"])
+        i += 1
+    print("Close match-ups filtered. %d files qualified." % len(close_matchups))
+    return close_matchups, supply_diff
+    
+def get_remaining_indices(file_count=0, ind1=0, ind2=0, supply=[]):
+    file_array = range(0, file_count-1)
+    remaining_indices = []
+    remaining_supplies = []
+    for i in range(len(file_array)):
+        if (file_array[i] not in ind1) and file_array[i] not in ind2:
+            remaining_indices.append(file_array[i])
+            remaining_supplies.append(supply[i])
+    return remaining_indices, remaining_supplies
     
 def play_replay(dir, version):
     simulation = Simulation()
@@ -158,7 +209,7 @@ def sum_up_csv_files(version = STANDARD_VERSION):
             file.close()
 # Function for reading the summed up .csv-files (all encounters of one specified version contained in one file)
 def read_summed_up_csv(csv_file, maximum = 0):
-    match_arr = []    
+    match_arr = []
     try:
         file = open(csv_file, 'r')
     except:
@@ -189,4 +240,104 @@ def read_summed_up_csv(csv_file, maximum = 0):
         counter += 1
        
     file.close()
-    return match_arr   
+    return match_arr  
+
+###
+def return_unit_values_by_id(id):
+    ###terran ids
+    if id == 32 or id == 33:
+        return siege_tank
+    if id == 34 or id == 35:
+        return viking
+    if id == 45:
+        return scv
+    if id == 48:
+        return marine
+    if id == 49:
+        return reaper
+    if id == 50:
+        return ghost
+    if id == 51:
+        return marauder
+    if id == 52:
+        return thor
+    if id == 53 or id == 484:
+        return hellion
+    if id == 54:
+        return medivac
+    if id == 55:
+        return banshee
+    if id == 56:
+        return raven
+    if id == 57:
+        return battlecruiser
+    if id == 268:
+        return mule
+    if id == 692:
+        return cyclone
+    ###protoss ids
+    if id == 4:
+        return colossus
+    if id == 10:
+        return mothership
+    if id == 73:
+        return zealot
+    if id == 74:
+        return stalker
+    if id == 75:
+        return high_templar
+    if id == 76:
+        return dark_templar
+    if id == 77:
+        return sentry
+    if id == 78:
+        return phoenix
+    if id == 79:
+        return carrier
+    if id == 80:
+        return void_ray
+    if id == 82:
+        return observer
+    if id == 83:
+        return immortal
+    if id == 84:
+        return probe
+    if id == 141:
+        return archon
+    if id == 311:
+        return adept
+    if id == 694:
+        return disruptor
+    ###zerg ids
+    if id == 9:
+        return baneling
+    if id == 12 or id == 13 or id == 15 or id == 17:
+        return changeling
+    if id == 104:
+        return drone
+    if id == 105:
+        return zergling
+    if id == 106:
+        return overlord
+    if id == 107:
+        return hydralisk
+    if id == 108:
+        return mutalisk
+    if id == 109:
+        return ultralisk
+    if id == 110:
+        return roach
+    if id == 111:
+        return infestor
+    if id == 112:
+        return corruptor
+    if id == 114:
+        return brood_lord
+    if id == 126:
+        return queen
+    if id == 129:
+        return overseer
+    if id == 289:
+        return broodling
+    if id == 499:
+        return viper    

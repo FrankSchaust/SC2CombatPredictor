@@ -90,7 +90,7 @@ def run_grad_desc(learning_rate=0.5, training_epochs = 10):
             # track accuracy to display in graph when algorithm finished
             trackCost.append(c)
             trackAcc.append(acc*100)
-            print('Epoch:', '%04d' % (epoch+1), "completed with an accuracy of:", "{:.3f}".format(acc), "cost=", "{:.9f}".format(c))
+            #print('Epoch:', '%04d' % (epoch+1), "completed with an accuracy of:", "{:.3f}".format(acc), "cost=", "{:.9f}".format(c))
         # evaluate accuary when all training steps are completed
         print ("Accuracy:", accuracy.eval({x: xs_test, y: ys_test}))
         
