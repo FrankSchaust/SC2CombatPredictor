@@ -28,12 +28,11 @@ from absl import app
 from lib.config import REPLAYS_PARSED_DIR
 from data import simulation_pb2
 
-def load_batch(replay_parsed_files, capped_batch = 1000, run = 0, lastindex = 0, train = True, skip_remis = False):			
+def load_batch(replay_parsed_files, indices = [], capped_batch = 1000, run = 0, lastindex = 0, train = True, skip_remis = False):			
         # Collect input and output
         # data.
     xs = []
     ys = []
-
     i = 0
     n = lastindex
     to_cap = capped_batch
@@ -42,11 +41,11 @@ def load_batch(replay_parsed_files, capped_batch = 1000, run = 0, lastindex = 0,
         if n >= len(replay_parsed_files):
             #print("%s files loaded" % (i))
             break;
-        with gzip.open(replay_parsed_files[n], 'rb') as file:
+
+        with gzip.open(replay_parsed_files[indices[n]], 'rb') as file:
             #print ("Printing file number %s replay name %s" % (i, replay_parsed_files[i]))
             simulation.ParseFromString(file.read())
-
-		
+       
         for battle in simulation.battle:
             obs = battle.initial_observation
             feature_layers = []
@@ -238,40 +237,40 @@ def load_batch(replay_parsed_files, capped_batch = 1000, run = 0, lastindex = 0,
     xs = np.array(xs)
     ys = np.array(ys)
     #print(len(xs), len(ys))
-    split = int(len(xs)*0.1)
-    # # Make train / test split
-    xs_train = xs[:-split]
-    ys_train = ys[:-split]
-    xs_test = xs[-split:]
-    ys_test = ys[-split:]
+    # split = int(len(xs)*0.1)
+    # # # Make train / test split
+    # xs_train = xs[:-split]
+    # ys_train = ys[:-split]
+    # xs_test = xs[-split:]
+    # ys_test = ys[-split:]
     #print(xs_train.size, xs_train.shape, xs_train[0].size, xs_train[0].shape)
     # # Convert labels to one-hot.
     if skip_remis:
         num_classes = 2
     else:    
         num_classes = 3
-    ys_train = keras.utils.to_categorical(ys_train, num_classes=num_classes)
-    ys_test = keras.utils.to_categorical(ys_test, num_classes=num_classes)
+    ys = keras.utils.to_categorical(ys, num_classes=num_classes)
+    # ys_test = keras.utils.to_categorical(ys_test, num_classes=num_classes)
     #shaping
     depth = 13
     img_rows, img_cols = 84, 84
     input_shape = (depth, img_rows,img_cols,1)
 	
-    xs_train = xs_train.astype(np.float32)
-    xs_test = xs_test.astype(np.float32)
+    xs = xs.astype(np.float32)
+    # xs_test = xs_test.astype(np.float32)
     
     #pp = pprint.PrettyPrinter(width=84)
     #pp.pprint(xs_test[0])
     #pp.pprint(xs_test[0][0])
 	
     # # Length check
-    assert(len(xs_train) == len(ys_train))
-    assert(len(xs_test) == len(ys_test))
+    assert(len(xs) == len(ys))
+    # assert(len(xs_test) == len(ys_test))
         
-    xs_train = np.frombuffer(xs_train, dtype=np.float32).reshape(xs_train.shape[0], depth, 84, 84, 1)
-    xs_test = np.frombuffer(xs_test, dtype=np.float32).reshape(xs_test.shape[0],depth, 84, 84, 1)
+    xs = np.frombuffer(xs, dtype=np.float32).reshape(xs.shape[0], depth, 84, 84, 1)
+    # xs_test = np.frombuffer(xs_test, dtype=np.float32).reshape(xs_test.shape[0],depth, 84, 84, 1)
     #print("xs_train Format: %s, xs_test Format %s" % (xs_train.shape, xs_test.shape))
     if(train):
-        return xs_train, xs_test, ys_train, ys_test, lastindex    
+        return xs, ys, lastindex    
     else:
-        return xs_test, ys_test, lastindex
+        return xs, ys, lastindex
