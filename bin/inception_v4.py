@@ -40,13 +40,13 @@ def main():
     conv_to_fc_ratio = [0.1]
     epochs = 20
     batch_size = 10
-    capped_batch = 100
+    capped_batch = 50
     num_classes = 3
     depth = 13
     
 	# Loading example files
     replay_parsed_files = []
-    replay_parsed_files = build_file_array(version=['1_3a'])
+    replay_parsed_files = build_file_array(version=['1_3b'])
     print(learning_rates, conv_to_fc_ratio)
     
     for lr in learning_rates:
@@ -210,7 +210,7 @@ def reduction_b( input, scope):
         
         return x     
 def print_layer_details(name_scope, shape):
-    print("Layer: %-20s --- Dimension: %30s" % (name_scope, shape))
+    print("Layer: %-20s --- Dimension: %-25s" % (name_scope, shape))
    
 def run_cnn(replays=[], lr=0.5, cfr=1, epochs=15, batch_size=10, capped_batch=100, depth=13, num_classes=3, tensorboard_dir=""):
     acc = 0
@@ -245,7 +245,7 @@ def run_cnn(replays=[], lr=0.5, cfr=1, epochs=15, batch_size=10, capped_batch=10
         print_layer_details(tf.contrib.framework.get_name_scope(), x_.get_shape())
     with tf.name_scope("Reduction_B"):
         x_ = reduction_b(x_, "Reduction_B")
-        print("Layer: %20s --- Dimension: %30s" % (tf.contrib.framework.get_name_scope(), x_.get_shape()))
+        print_layer_details(tf.contrib.framework.get_name_scope(), x_.get_shape())
     with tf.name_scope("Inception_C"):
         for i in range(3):
             x_ = inception_c(x_, "Inception_C")
@@ -254,7 +254,7 @@ def run_cnn(replays=[], lr=0.5, cfr=1, epochs=15, batch_size=10, capped_batch=10
         x_avg = tf.layers.average_pooling3d(x_, pool_size=[13, 8, 8], strides=(1,1,1))
         x_flat = tf.layers.flatten(inputs=x_avg)
         # x_dense = tf.layers.dense(inputs=x_flat, units=16*int(9*(1-(cfr*(10/9)))))
-        print("Layer: %20s --- Dimension: %20s" % (tf.contrib.framework.get_name_scope(), x_flat.get_shape()))
+        print_layer_details(tf.contrib.framework.get_name_scope(), x_.get_shape())
         y_ = tf.layers.dense(inputs=x_flat, units=num_classes)
 
     softmax = tf.nn.softmax(y_)

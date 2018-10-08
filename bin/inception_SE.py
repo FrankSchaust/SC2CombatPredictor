@@ -264,7 +264,7 @@ def run_cnn(replays=[], lr=0.5, cfr=1, epochs=15, batch_size=10, capped_batch=10
         print_layer_details(tf.contrib.framework.get_name_scope(), x_.get_shape())
     with tf.name_scope("Reduction_B"):
         x_ = reduction_b(x_, "Reduction_B")
-        print("Layer: %20s --- Dimension: %30s" % (tf.contrib.framework.get_name_scope(), x_.get_shape()))
+        print_layer_details(tf.contrib.framework.get_name_scope(), x_.get_shape())
     with tf.name_scope("Inception_C"):
         for i in range(3):
             x_ = inception_c(x_, "Inception_C") 
