@@ -33,7 +33,8 @@ def main(ununsed_argv):
     fail_counter = 0
     while 1:
         try: 
-            game_routine(version='1_3a')
+            game_routine(version='1_3b')
+            time.sleep(5)
             demo_counter += 1
         except RuntimeError:
             print("Observer crashed, demo invalid")
@@ -41,8 +42,14 @@ def main(ununsed_argv):
         except KeyboardInterrupt:
             print("%s demos genrated this run, %s demos were unusable" % (demo_counter, fail_counter))
             break;
+        except ConnectionResetError:
+            print("Unexpected Connection error, demo invalid")
+            fail_counter += 1
+        except ConnectionError:
+            print("Unexpected Connection error, demo invalid")
+            fail_counter += 1
         except:
-            print("Unexpected Websocket error, demo invalid")
+            print("Unexpected Connection error, demo invalid")
             fail_counter += 1
 def game_routine(version = STANDARD_VERSION):
         PATH = MAP_PATH + '-v' + version +'.SC2Map'
@@ -78,10 +85,10 @@ def game_routine(version = STANDARD_VERSION):
                 controller.step(8)
                 obs = controller.observe()
             replay_path = os.path.join(REPLAY_DIR, version, ('SC2CombatGenerator' + datetime.datetime.now().strftime('%d-%m-%Y_%H-%M-%S') + '.SC2Replay'))
-			
+            os.makedirs(os.path.join(REPLAY_DIR, version), exist_ok=True)
             print('Game completed. Saving replay to "{}".'.format(replay_path),
                   file=sys.stderr)
-            os.makedirs(REPLAY_DIR, exist_ok=True)
+            
             with open(replay_path, 'wb') as file:
                 file.write(controller.save_replay())
             print('Done.', file=sys.stderr)

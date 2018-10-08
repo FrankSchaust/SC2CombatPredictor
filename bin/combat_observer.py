@@ -33,6 +33,7 @@ from data.simulation_pb2 import Battle, Simulation
 
 
 def main(unused_argv, version=STANDARD_VERSION):
+    version = '1_3b'
     replay_files = []
     for root, dir, files in os.walk(os.path.join(REPLAY_DIR, version)):
         for file in files:
@@ -178,7 +179,7 @@ def main(unused_argv, version=STANDARD_VERSION):
                                 units = np.array(units)
                                 df = pd.DataFrame(units)
                                 
-                                df.to_csv(os.path.join(LOG_SINGLE, 'unit_log_' + os.path.relpath(replay_file, os.path.join(REPLAY_DIR, version)).replace('.SC2Replay', '_' + str(round_num) + '.csv')))
+                                df.to_csv(os.path.join(LOG_SINGLE, os.path.relpath(replay_file, os.path.join(REPLAY_DIR, version)).replace('.SC2Replay', '_' + str(round_num) + '.csv')))
                                 units = []                              
                                 curr_battle = None
             except ValueError:
@@ -196,6 +197,7 @@ def main(unused_argv, version=STANDARD_VERSION):
                 # with open(replay_parsed_file, 'wb') as file:
                     # file.write(simulation.SerializeToString())
                 # os.rename(replay_file, os.path.join(REPO_DIR, "parsed_basic", os.path.relpath(replay_file, REPLAY_DIR)))
+            os.makedirs(os.path.join(REPO_DIR, 'parsed_basic', version), exist_ok=True)
             os.rename(replay_file, os.path.join(REPO_DIR, "parsed_basic", version, os.path.relpath(replay_file, os.path.join(REPLAY_DIR, version))))
             print('Done.', file=sys.stderr)
    
