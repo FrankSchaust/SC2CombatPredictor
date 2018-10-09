@@ -1,3 +1,4 @@
+
 #ignore all replays
 *.SC2Replay
 *.SC2Replay_parsed
@@ -8,3 +9,18 @@
 
 #ignore all tensorboard data
 *.DESKTOP-6R44I4A
+#ignore following directories
+1_3a/
+log/
+oldversion/
+oldVersionReplays/
+parsed_basic/
+parsed_basic_v1_1/
+replays/
+replays_parsed/
+replays_parsed_v1_1/
+saves/
+screens/
+tensorboard/
+tensorboard_logs/
+tensorboard_sumlogs

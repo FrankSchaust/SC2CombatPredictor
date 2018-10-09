@@ -44,6 +44,7 @@ def main():
     capped_batch = 100
     num_classes = 3
     depth = 13
+    r = 1
     
 	# Loading example files
     replay_parsed_files = []
@@ -53,10 +54,11 @@ def main():
     for lr in learning_rates:
         for cfr in conv_to_fc_ratio:
             # build the folder structure for tensorboard logs
-            tensorboard_dir = os.path.join(REPO_DIR, 'tensorboard_logs', 'inception', 'LearningRate_'+str(lr)+'_ConvToFcRatio_'+str(cfr)+'_SampleSize_'+str(capped_batch))
-            os.makedirs(tensorboard_dir, exist_ok=True)
+            
             # every structure will be trained 10 times
             for n in range(10):
+                tensorboard_dir = os.path.join(REPO_DIR, 'tensorboard_logs', 'inception', 'LearningRate_'+str(lr)+'_ConvToFcRatio_'+str(cfr)+'_SampleSize_'+str(capped_batch), 'Run '+str(r+n))
+                os.makedirs(tensorboard_dir, exist_ok=True)
                 run_cnn(replays=replay_parsed_files, lr=lr, cfr=cfr, epochs=epochs, capped_batch=capped_batch, tensorboard_dir=tensorboard_dir)
 
 def inception(inputs, kernels=[1,1,1,1,1,1]):

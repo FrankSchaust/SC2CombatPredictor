@@ -43,6 +43,7 @@ def main():
     capped_batch = 50
     num_classes = 3
     depth = 13
+    r=1
     
 	# Loading example files
     replay_parsed_files = []
@@ -52,10 +53,12 @@ def main():
     for lr in learning_rates:
         for cfr in conv_to_fc_ratio:
             # build the folder structure for tensorboard logs
-            tensorboard_dir = os.path.join(REPO_DIR, 'tensorboard_logs', 'inception_v4', 'LearningRate_'+str(lr)+'_ConvToFcRatio_'+str(cfr)+'_SampleSize_'+str(capped_batch))
-            os.makedirs(tensorboard_dir, exist_ok=True)
+           
+            
             # every structure will be trained 10 times
             for n in range(1):
+                tensorboard_dir = os.path.join(REPO_DIR, 'tensorboard_logs', 'inception', 'LearningRate_'+str(lr)+'_ConvToFcRatio_'+str(cfr)+'_SampleSize_'+str(capped_batch), 'Run '+str(r+n))
+                os.makedirs(tensorboard_dir, exist_ok=True)
                 run_cnn(replays=replay_parsed_files, lr=lr, cfr=cfr, epochs=epochs, capped_batch=capped_batch, tensorboard_dir=tensorboard_dir)
                 
 def inception(inputs, kernels=[1,1,1,1,1,1]):
@@ -355,7 +358,7 @@ def run_cnn(replays=[], lr=0.5, cfr=1, epochs=15, batch_size=10, capped_batch=10
             if i%100==0 and i>0:
                 print("%4d samples evaluated." % (i))
         for i in range(10):
-            test_summary = tf.Summary(value=[tf.Summary.Value(tag='acc'+i, simple_value=(supply_acc[i]/supply_count[i]))])
+            test_summary = tf.Summary(value=[tf.Summary.Value(tag='acc'+str(i), simple_value=(supply_acc[i]/supply_count[i]))])
             summary_writer.add_summary(summary=test_summary, global_step=i)
             print("Accuracy for samples with a supply difference of %.1f: %6.2f%%" % (i/2, (supply_acc[i]/supply_count[i])))
         print("Overall accuracy on %5d samples: %6.2f%%" % (len(remaining_indices), sum(supply_acc)/sum(supply_count)))

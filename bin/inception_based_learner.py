@@ -44,6 +44,7 @@ def main():
     batch_size = 10
     capped_batch = 300
     num_classes = 3
+    
     batches = int(len(replay_parsed_files) / batch_size)
     run_inception(replay_parsed_files, learning_rate, epochs, batches, batch_size, capped_batch, depth, num_classes)
 
