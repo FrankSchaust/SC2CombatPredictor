@@ -20,16 +20,13 @@ import sys
 import keras
 import numpy as np
 import tensorflow as tf
-from keras.models import Sequential
-from keras.layers import Dense, Flatten
-from keras.layers import Conv2D, Dropout, MaxPooling2D, Conv3D, MaxPooling3D
 from absl import app
 
 from bin.util import *
 from lib.config import REPLAYS_PARSED_DIR, REPO_DIR
 from data import simulation_pb2
 from bin.load_batch import load_batch
-
+from bin.modules import *
 
 
 def main():
@@ -48,7 +45,7 @@ def main():
     
 	# Loading example files
     replay_parsed_files = []
-    replay_parsed_files = build_file_array(version=['1_3a'])
+    replay_parsed_files = build_file_array(version=['1_3b'])
     print(learning_rates, conv_to_fc_ratio)
     
     for lr in learning_rates:
@@ -58,175 +55,11 @@ def main():
             
             # every structure will be trained 10 times
             for n in range(1):
-                tensorboard_dir = os.path.join(REPO_DIR, 'tensorboard_logs', 'inception', 'LearningRate_'+str(lr)+'_ConvToFcRatio_'+str(cfr)+'_SampleSize_'+str(capped_batch), 'Run '+str(r+n))
+                tensorboard_dir = os.path.join(REPO_DIR, 'tensorboard_logs', 'inception_SE', 'LearningRate_'+str(lr)+'_Inc_ABC_Red_AB_DepthRed_12_5_2_Dense_1x48_SampleSize_'+str(capped_batch), 'Run '+str(r+n))
                 os.makedirs(tensorboard_dir, exist_ok=True)
                 run_cnn(replays=replay_parsed_files, lr=lr, cfr=cfr, epochs=epochs, capped_batch=capped_batch, tensorboard_dir=tensorboard_dir, rr=reduction_ratio)
                 
-def inception(inputs, kernels=[1,1,1,1,1,1]):
- ### TODO                
-    # far left side of inception module
-    inception_1x1 = tf.layers.conv3d(inputs=inputs, filters=kernels[0], kernel_size=[1, 1, 1], strides=(1,1,1), padding='same', activation=tf.nn.relu)
-    # near left side
-    inception_red_3x3 = tf.layers.conv3d(inputs=inputs, filters=kernels[1], kernel_size=[1, 1, 1], strides=(1,1,1), padding='same', activation=tf.nn.relu)
-    inception_3x3 = tf.layers.conv3d(inputs=inception_red_3x3, filters=kernels[2], kernel_size=[1, 3, 3], strides=(1,1,1), padding='same', activation=tf.nn.relu)
-    # near right side
-    inception_red_5x5 = tf.layers.conv3d(inputs=inputs, filters=kernels[3], kernel_size=[1, 1, 1], strides=(1,1,1), padding='same', activation=tf.nn.relu)
-    inception_5x5 = tf.layers.conv3d(inputs=inception_red_5x5, filters=kernels[4], kernel_size=[1, 5, 5], strides=(1,1,1), padding='same', activation=tf.nn.relu)
-    # far right side
-    inception_max_pool = tf.layers.max_pooling3d(inputs=inputs, pool_size=[1, 2, 2], strides=(1,1,1))
-    inception_max_pool_1x1 = tf.layers.conv3d(inputs=inputs, filters=kernels[5], kernel_size=[1, 1, 1], strides=(1,1,1), padding='same', activation=tf.nn.relu)
-    inception = tf.concat([inception_1x1, inception_3x3, inception_5x5, inception_max_pool_1x1], 4)
-    inception_bn = tf.layers.batch_normalization(inputs=inception, training=True)
-    return inception_bn
-    
-    
-def Max_Pooling(x, pool_size=[1,3,3], stride=(1,2,2), padding='VALID'):
-    return tf.layers.max_pooling3d(inputs=x, pool_size=pool_size, strides=stride, padding=padding)
-def Avg_Pooling(x, pool_size=[1,3,3], stride=(1,1,1), padding='SAME'):    
-    return tf.layers.average_pooling3d(inputs=x, pool_size=pool_size, strides=stride, padding=padding)
-def Conv_Layer(input, filter, kernel, stride=(1,1,1), padding='SAME', layer_name="conv"):
-    with tf.name_scope(layer_name):
-        return tf.layers.conv3d(inputs=input, use_bias=True, filters=filter, kernel_size=kernel, strides=stride, padding=padding, activation=tf.nn.relu)
-def Concat(x): 
-    return tf.concat(x, 4)
-
-
-
-def stem(input, scope):
-    with tf.name_scope(scope):
-        x_ = Conv_Layer(input, filter=32, kernel=[1,3,3], layer_name=scope+'_conv1')
-        x_ = Conv_Layer(x_, filter=32, kernel=[1,3,3], padding='VALID', layer_name=scope+'_conv2')
-        x = Conv_Layer(x_, filter=64, kernel=[1,3,3], layer_name=scope+'_conv3')
-        # max_x_1 = Max_Pooling(x)
-        # conv_x_1 = Conv_Layer(x, filter=96, kernel=[1,3,3], stride=(1,2,2), padding='VALID', layer_name=scope+'_conv4')
-        
-        # x = Concat([max_x_1, conv_x_1])
-        split_x_1 = Conv_Layer(x, filter=64, kernel=[1,1,1], layer_name=scope+'_split_conv1')
-        split_x_1 = Conv_Layer(split_x_1, filter=96, kernel=[1,3,3], padding='VALID', layer_name=scope+'_split_conv2')
-        
-        split_x_2 = Conv_Layer(x, filter=64, kernel=[1,1,1], layer_name=scope+'_split_conv3')
-        split_x_2 = Conv_Layer(split_x_2, filter=64, kernel=[1,7,1], layer_name=scope+'_split_conv4')
-        split_x_2 = Conv_Layer(split_x_2, filter=64, kernel=[1,1,7], layer_name=scope+'_split_conv5')
-        split_x_2 = Conv_Layer(split_x_2, filter=96, kernel=[1,3,3], padding='VALID', layer_name=scope+'_split_conv6')
-        
-        x = Concat([split_x_1, split_x_2])
-        # split_conv_x = Conv_Layer(x, filter=192, kernel=[1,3,3], stride=(1,2,2), padding='VALID', layer_name=scope+'_conv5')
-        # split_max_x = Max_Pooling(x)
-        
-        # x = Concat([split_conv_x, split_max_x])
-        x = tf.layers.batch_normalization(inputs=x, training=True)
-        return x
-        
-def inception_a( input, scope):
-    with tf.name_scope(scope):
-        # far left side
-        x_fl = Avg_Pooling(input)
-        x_fl = Conv_Layer(x_fl, filter=96, kernel=[1,1,1], layer_name=scope+"_split_conv1")
-        # close left side
-        x_cl = Conv_Layer(input, filter=96, kernel=[1,1,1], layer_name=scope+"_split_conv2")
-        # close right side
-        x_cr = Conv_Layer(input, filter=64, kernel=[1,1,1], layer_name=scope+"_split_conv3")
-        x_cr = Conv_Layer(x_cr, filter=96, kernel=[1,3,3], layer_name=scope+"_split_conv4")
-        #far right side
-        x_fr = Conv_Layer(input, filter=64, kernel=[1,1,1], layer_name=scope+"_split_conv5")
-        x_fr = Conv_Layer(x_fr, filter=96, kernel=[1,3,3], layer_name=scope+"_split_conv6")
-        x_fr = Conv_Layer(x_fr, filter=96, kernel=[1,3,3], layer_name=scope+"_split_conv7")
-        
-        x = Concat([x_fl, x_cl, x_cr, x_fr])
-        x = tf.layers.batch_normalization(inputs=x, training=True)
-        return x
-        
-def inception_b( input, scope):
-    with tf.name_scope(scope):
-        # far left side
-        x_fl = Avg_Pooling(input)
-        x_fl = Conv_Layer(x_fl, filter=128, kernel=[1,1,1], layer_name=scope+"_split_conv1")
-        # close left side
-        x_cl = Conv_Layer(input, filter=384, kernel=[1,1,1], layer_name=scope+"_split_conv2")
-        # close right side
-        x_cr = Conv_Layer(input, filter=192, kernel=[1,1,1], layer_name=scope+"_split_conv3")
-        x_cr = Conv_Layer(x_cr, filter=224, kernel=[1,1,7], layer_name=scope+"_split_conv4")
-        x_cr = Conv_Layer(x_cr, filter=256, kernel=[1,1,7], layer_name=scope+"_split_conv5")
-        #far right side
-        x_fr = Conv_Layer(input, filter=192, kernel=[1,1,1], layer_name=scope+"_split_conv6")
-        x_fr = Conv_Layer(x_fr, filter=192, kernel=[1,1,7], layer_name=scope+"_split_conv7")
-        x_fr = Conv_Layer(x_fr, filter=224, kernel=[1,7,1], layer_name=scope+"_split_conv8")
-        x_fr = Conv_Layer(x_fr, filter=224, kernel=[1,1,7], layer_name=scope+"_split_conv9")
-        x_fr = Conv_Layer(x_fr, filter=256, kernel=[1,7,1], layer_name=scope+"_split_conv10")
-        
-        x = Concat([x_fl, x_cl, x_cr, x_fr])
-        x = tf.layers.batch_normalization(inputs=x, training=True)
-        return x        
-    
-def inception_c( input, scope):
-    with tf.name_scope(scope):
-        # far left side
-        x_fl = Avg_Pooling(input)
-        x_fl = Conv_Layer(x_fl, filter=256, kernel=[1,1,1], layer_name=scope+"_split_conv1")
-        # close left side
-        x_cl = Conv_Layer(input, filter=256, kernel=[1,1,1], layer_name=scope+"_split_conv2")
-        # close right side
-        x_cr = Conv_Layer(input, filter=384, kernel=[1,1,1], layer_name=scope+"_split_conv3")
-        x_cr_1 = Conv_Layer(x_cr, filter=256, kernel=[1,1,3], layer_name=scope+"_split_conv4")
-        x_cr_2 = Conv_Layer(x_cr, filter=256, kernel=[1,3,1], layer_name=scope+"_split_conv5")
-        #far right side
-        x_fr = Conv_Layer(input, filter=384, kernel=[1,1,1], layer_name=scope+"_split_conv6")
-        x_fr = Conv_Layer(x_fr, filter=448, kernel=[1,1,3], layer_name=scope+"_split_conv7")
-        x_fr = Conv_Layer(x_fr, filter=512, kernel=[1,3,1], layer_name=scope+"_split_conv8")
-        x_fr_1 = Conv_Layer(x_fr, filter=256, kernel=[1,3,1], layer_name=scope+"_split_conv9")
-        x_fr_2 = Conv_Layer(x_fr, filter=256, kernel=[1,1,3], layer_name=scope+"_split_conv10")
-        
-        x = Concat([x_fl, x_cl, x_cr_1, x_cr_2, x_fr_1, x_fr_2])
-        x = tf.layers.batch_normalization(inputs=x, training=True)
-        return x 
-   
-def reduction_a( input, scope):
-    with tf.name_scope(scope):
-        max_pool = Max_Pooling(input)
-
-        conv_1 = Conv_Layer(input, filter=384, kernel=[1,3,3], stride=(1,2,2), padding='VALID', layer_name=scope+"_split_conv1")
-        
-        conv_2 = Conv_Layer(input, filter=256, kernel=[1,1,1], layer_name=scope+"_split_conv2")
-        conv_2 = Conv_Layer(conv_2, filter=256, kernel=[1,3,3], layer_name=scope+"_split_conv3")
-        conv_2 = Conv_Layer(conv_2, filter=384, kernel=[1,3,3], stride=(1,2,2), padding='VALID', layer_name=scope+"_split_conv4")
-        
-        x = Concat([max_pool, conv_1, conv_2])
-        x = tf.layers.batch_normalization(inputs=x, training=True)
-        
-        return x
-   
-def reduction_b( input, scope):
-    with tf.name_scope(scope):
-        max_pool = Max_Pooling(input)
-
-        conv_1 = Conv_Layer(input, filter=256, kernel=[1,1,1], layer_name=scope+"_split_conv1")
-        conv_1 = Conv_Layer(conv_1, filter=384, kernel=[1,3,3], stride=(1,2,2), padding='VALID', layer_name=scope+"_split_conv2")
-        
-        conv_2 = Conv_Layer(input, filter=256, kernel=[1,1,1], layer_name=scope+"_split_conv3")
-        conv_2 = Conv_Layer(conv_2, filter=288, kernel=[1,3,3], stride=(1,2,2), padding='VALID', layer_name=scope+"_split_conv4")
-        
-        conv_3 = Conv_Layer(input, filter=256, kernel=[1,1,1], layer_name=scope+"_split_conv5")
-        conv_3 = Conv_Layer(conv_3, filter=288, kernel=[1,3,3], layer_name=scope+"_split_conv6")
-        conv_3 = Conv_Layer(conv_3, filter=320, kernel=[1,3,3], stride=(1,2,2), padding='VALID', layer_name=scope+"_split_conv7")
-        
-        x = Concat([max_pool, conv_1, conv_2, conv_3])
-        x = tf.layers.batch_normalization(inputs=x, training=True)
-        
-        return x 
-
-def se_layer(input, out_dim, ratio, scope):
-    with tf.name_scope(scope):
-        squeeze = tf.keras.backend.mean(input, axis=[1,2,3])
-        excitation = tf.layers.dense(inputs=squeeze, units=out_dim/ratio)
-        excitation = tf.nn.relu(excitation)
-        excitation = tf.layers.dense(inputs=excitation, units=out_dim)
-        excitation = tf.nn.sigmoid(excitation)
-        
-        excitation = tf.reshape(excitation, [-1, 1, 1, 1, out_dim])
-        scale = input * excitation
-        
-        return scale 
-        
+            
 def print_layer_details(name_scope, shape):
     print("Layer: %-20s --- Dimension: %30s" % (name_scope, shape))
         
@@ -247,11 +80,11 @@ def run_cnn(replays=[], lr=0.5, cfr=1, epochs=15, batch_size=10, capped_batch=10
     # input  13 x 84 x 84 x 1
     # output 13 x 21 x 21 x 64
     with tf.name_scope("Stem"):
-        x_ = tf.layers.max_pooling3d(x, pool_size=[1,2,2], strides=(1,2,2))
+        x_ = tf.layers.max_pooling3d(x, pool_size=[2,2,2], strides=(1,2,2))
         x_ = stem(x_, "Stem")
         print_layer_details(tf.contrib.framework.get_name_scope(), x_.get_shape())
     with tf.name_scope("Inception_A"):
-        for i in range(4):
+        for i in range(1):
             x_ = inception_a(x_, "Inception_A")
             channel = int(np.shape(x_)[-1])
             x_ = se_layer(x_, out_dim=channel, ratio=rr, scope="SE_A"+str(i))
@@ -260,7 +93,7 @@ def run_cnn(replays=[], lr=0.5, cfr=1, epochs=15, batch_size=10, capped_batch=10
         x_ = reduction_a(x_, "Reduction_A")
         print_layer_details(tf.contrib.framework.get_name_scope(), x_.get_shape())
     with tf.name_scope("Inception_B"):
-        for i in range(7):
+        for i in range(1):
             x_ = inception_b(x_, "Inception_B") 
             channel = int(np.shape(x_)[-1])
             x_ = se_layer(x_, out_dim=channel, ratio=rr, scope="SE_B"+str(i))
@@ -269,17 +102,17 @@ def run_cnn(replays=[], lr=0.5, cfr=1, epochs=15, batch_size=10, capped_batch=10
         x_ = reduction_b(x_, "Reduction_B")
         print_layer_details(tf.contrib.framework.get_name_scope(), x_.get_shape())
     with tf.name_scope("Inception_C"):
-        for i in range(3):
+        for i in range(1):
             x_ = inception_c(x_, "Inception_C") 
             channel = int(np.shape(x_)[-1])
             x_ = se_layer(x_, out_dim=channel, ratio=rr, scope="SE_C"+str(i))
         print_layer_details(tf.contrib.framework.get_name_scope(), x_.get_shape())
     with tf.name_scope("Final_Layer"):
-        x_avg = tf.layers.average_pooling3d(x_, pool_size=[13, 8, 8], strides=(1,1,1))
+        x_avg = tf.layers.average_pooling3d(x_, pool_size=[1, 1, 1], strides=(1,1,1))
         x_flat = tf.layers.flatten(inputs=x_avg)
-        # x_dense = tf.layers.dense(inputs=x_flat, units=16*int(9*(1-(cfr*(10/9)))))
-        print_layer_details(tf.contrib.framework.get_name_scope(), x_.get_shape())
-        y_ = tf.layers.dense(inputs=x_flat, units=num_classes)
+        x_dense = tf.layers.dense(inputs=x_flat, units=16*3)
+        print_layer_details(tf.contrib.framework.get_name_scope(), x_dense.get_shape())
+        y_ = tf.layers.dense(inputs=x_dense, units=num_classes)
 
     softmax = tf.nn.softmax(y_)
     
@@ -304,7 +137,7 @@ def run_cnn(replays=[], lr=0.5, cfr=1, epochs=15, batch_size=10, capped_batch=10
         # setup recording variables
         # add a summary to store the accuracy
         cap = capped_batch
-        close_matchups, supplies = filter_close_matchups(replays, supply_limit=6)
+        close_matchups, supplies = filter_close_matchups(replays, supply_limit=5)
 
         train_file_indices, test_file_indices = generate_random_indices(file_count=len(close_matchups), cap=cap, split_ratio=0.9) 
         print(len(train_file_indices))
@@ -332,7 +165,7 @@ def run_cnn(replays=[], lr=0.5, cfr=1, epochs=15, batch_size=10, capped_batch=10
                 acc += train_acc / batches
             if len(test_file_indices) < 30: 
                 batch_x, batch_y, lis = load_batch(replays, indices=test_file_indices, capped_batch=len(test_file_indices), run=1, lastindex=lis,)
-                _, c = sess.run([optimiser, cross_entropy], feed_dict={x: batch_x, y: batch_y})
+                # _, c = sess.run([optimiser, cross_entropy], feed_dict={x: batch_x, y: batch_y})
                 test_acc = sess.run(accuracy, feed_dict={x: batch_x, y: batch_y})
                 #sys.stdout.write("\r[%-20s] %.2f%% --- Batch %d from %d" % ('='*int(((i+1)/total_batch)*20), ((i+1)/total_batch)*100, i+1, total_batch))
                 #sys.stdout.flush()
@@ -345,7 +178,7 @@ def run_cnn(replays=[], lr=0.5, cfr=1, epochs=15, batch_size=10, capped_batch=10
                 batches = int(len(test_file_indices))/batch_size
                 for i in range(batches):
                     batch_x, batch_y, lis = load_batch(replays, indices=test_file_indices, capped_batch=batch_size, run=i, lastindex=lis,)
-                    _, c = sess.run([optimiser, cross_entropy], feed_dict={x: batch_x, y: batch_y})
+                    # _, c = sess.run([optimiser, cross_entropy], feed_dict={x: batch_x, y: batch_y})
                     test_acc = sess.run(accuracy, feed_dict={x: batch_x, y: batch_y})
                     #sys.stdout.write("\r[%-20s] %.2f%% --- Batch %d from %d" % ('='*int(((i+1)/total_batch)*20), ((i+1)/total_batch)*100, i+1, total_batch))
                     #sys.stdout.flush()
@@ -379,7 +212,7 @@ def run_cnn(replays=[], lr=0.5, cfr=1, epochs=15, batch_size=10, capped_batch=10
             if i%100==0 and i>0:
                 print("%4d samples evaluated." % (i))
         for i in range(10):
-            test_summary = tf.Summary(value=[tf.Summary.Value(tag='acc'+str(i), simple_value=(supply_acc[i]/supply_count[i]))])
+            test_summary = tf.Summary(value=[tf.Summary.Value(tag='acc_by_supplies', simple_value=(supply_acc[i]/supply_count[i]))])
             summary_writer.add_summary(summary=test_summary, global_step=i)
             print("Accuracy for samples with a supply difference of %.1f: %6.2f%%" % (i/2, (supply_acc[i]/supply_count[i])))
         print("Overall accuracy on %5d samples: %6.2f%%" % (len(remaining_indices), sum(supply_acc)/sum(supply_count)))

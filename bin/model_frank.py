@@ -16,7 +16,7 @@
 import os
 import sys
 
-
+import six
 import keras
 import numpy as np
 import tensorflow as tf
@@ -31,106 +31,101 @@ from data import simulation_pb2
 from bin.load_batch import load_batch
 from bin.modules import *
 
-
-
 def main():
     os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3' 
     i = 0
-    learning_rates = [0.5, 0.05, 0.005, 0.0005, 0.00005]
+    learning_rates = [0.1]#[0.1, 0.01, 0.005, 0.001, 0.0005, 0.0001, 0.00005]
+    countConv = [3]#np.arange(0,5)
+    countFully = [2]#np.arange(0,5)
     ### constant declarations, the different architectures will be iterated by chosing different learning rates and ratios of convolutions to fully connected layers
-    conv_to_fc_ratio = [0.1]
-    epochs = 20
-    batch_size = 10
-    capped_batch = 200
+    epochs = 30
+    batch_size = 20
+    capped_batch = 10000
     num_classes = 3
     depth = 13
     r=1
     
 	# Loading example files
     replay_parsed_files = []
-    replay_parsed_files = build_file_array(version=['1_3b'])
-    print(learning_rates, conv_to_fc_ratio)
+    replay_parsed_files = build_file_array(version=['1_3b', '1_3c', '1_3d', '1_3d_10sup'])
     
-    for lr in learning_rates:        
-        # build the folder structure for tensorboard logs
-        base_dir = os.path.join(REPO_DIR, 'tensorboard_logs', 'inception', 'LearningRate_'+str(lr)+'_Inc_1_Dense_9x16_SampleSize_'+str(capped_batch))
-        os.makedirs(base_dir, exist_ok=True)
-        sub_dirs = get_immediate_subdirectories(base_dir)
-        last_run_fin = get_number_of_last_run(base_dir, sub_dirs)
-        # every structure will be trained 10 times
-        for n in range(10):
-            last_run_fin += 1
-            tensorboard_dir = os.path.join(base_dir, 'Run '+str(last_run_fin))
-            os.makedirs(tensorboard_dir, exist_ok=True)
-            print('Model and Logs saved at %s' % (tensorboard_dir))
-            run_cnn(replays=replay_parsed_files, lr=lr, cfr=0.5, epochs=epochs, capped_batch=capped_batch, tensorboard_dir=tensorboard_dir)
-
-   
-def run_cnn(replays=[], lr=0.5, cfr=1, epochs=15, batch_size=10, capped_batch=100, depth=13, num_classes=3, tensorboard_dir=""):
+    for lr in learning_rates: 
+        for c in countConv: 
+            for f in countFully:
+                print(c, f)
+                if c == 0 and f == 0:
+                    continue
+                # build the folder structure for tensorboard logs
+                base_dir = os.path.join(REPO_DIR, 'tensorboard_logs', 'Model_Frank_2', 'LearningRate_'+str(lr)+'_Conv_'+str(c)+'_FC_'+str(f)+'_Sample_Size_'+str(capped_batch))
+                os.makedirs(base_dir, exist_ok=True)
+                sub_dirs = get_immediate_subdirectories(base_dir)
+                last_run_fin = get_number_of_last_run(base_dir, sub_dirs)
+                # every structure will be trained 10 times
+                for n in range(1):
+                    last_run_fin += 1
+                    tensorboard_dir = os.path.join(base_dir, 'Run '+str(last_run_fin))
+                    os.makedirs(tensorboard_dir, exist_ok=True)
+                    print('Model and Logs saved at %s' % (tensorboard_dir))
+                    if c == 0: 
+                        epochs = 30
+                    else:
+                        epochs = 30
+                    run_cnn(replays=replay_parsed_files, lr=lr, epochs=epochs, capped_batch=capped_batch, tensorboard_dir=tensorboard_dir, c=c, f=f)
+ 
+def run_cnn(replays=[], lr=0.5, epochs=15, batch_size=10, capped_batch=100, depth=13, num_classes=3, tensorboard_dir="", c=1, f=1): 
     acc = 0
     t_acc = 0
     x = tf.placeholder(tf.float32, shape=[None, depth, 84, 84, 1])
     y = tf.placeholder(tf.float32, shape=[None, num_classes])
-    inception_kernels = [
-        [64, 96, 128, 16, 32, 32],
-        [128, 128, 192, 32, 96, 64],
-        [192, 96, 208, 16, 48, 64],
-        [160, 112, 224, 24, 64, 64],
-        [128, 128, 256, 24, 64, 64],
-        [112, 144, 288, 32, 64, 64],
-        [256, 160, 320, 32, 128, 128],
-        [256, 160, 320, 32, 128, 128],
-        [384, 192, 384, 48, 128, 128]
-        ]
-    ### based on a depth of 10 layers we define the ratio between inceptions and fully-connected layers as the ratio between the count of layers
-    ### the architectures based on the ratio should be defined by hand, as the kernel specifications vary depending on the depth of the inceptions
-    ### fully connected layers may increase the number of kernel with greater depth. 
-    ### could be interesting what diffences may occure when the kernel size for deep fcl structures remain constant
-    
-    # # # Layer A 
-    # convoluitional layer with 6x6 kernel, 2 stride and 64 kernels
-    # max pool is 3x3 with 2 stride
-    # input  13 x 84 x 84 x 1
-    # output 13 x 21 x 21 x 64
-    with tf.name_scope("Layer_A"):
-        conv1 = tf.layers.conv3d(inputs=x, filters=64, kernel_size=[1, 7, 7], strides=(1,2,2), padding='same', activation=tf.nn.relu)
-        max_pool1 = tf.layers.max_pooling3d(inputs=conv1, pool_size=[1, 3, 3], strides=(1,2,2))
-        bn1 = tf.layers.batch_normalization(inputs=max_pool1, training=True)
-        print_layer_details(tf.contrib.framework.get_name_scope(), bn1.get_shape())
-    # # # Layer B 
-    # convolutional layer with 1x1 kernel used as reduction
-    # convolutional layer with 3x3 kernel, 1 stride and 192 kernels 
-    # max pool is 3x3 with 2 stride
-    # input  13 x 21 x 21 x 64
-    # output 13 x 10 x 10 x 192 
-    with tf.name_scope("Layer_B"):
-        conv_red_2 = tf.layers.conv3d(inputs=bn1, filters=64, kernel_size=[1, 1, 1], strides=(1,1,1), padding='valid', activation=tf.nn.relu)
-        conv2 = tf.layers.conv3d(inputs=conv_red_2, filters=192, kernel_size=[1, 3, 3], strides=(1,1,1), padding='same', activation=tf.nn.relu)
-        max_pool2 = tf.layers.max_pooling3d(inputs=conv2, pool_size=[1, 3, 3], strides=(1,2,2))
-        x_ = tf.layers.batch_normalization(inputs=max_pool2, training=True)
-        print_layer_details(tf.contrib.framework.get_name_scope(), x_.get_shape())
-        
-    for i in range(1):
-        with tf.name_scope("Layer_C_"+str(i)):
-            x_ = inception(inputs=x_, kernels=inception_kernels[i])
-            if i == 1:
-                x_ = tf.layers.max_pooling3d(inputs=x_, pool_size=[1, 2, 2], strides=(1,2,2))
+    x_ = x
+    # remove zero matrices
+    x0 = tf.slice(x_, [0, 0, 0, 0, 0], [-1, 1, 84, 84, 1])
+    x1 = tf.slice(x_, [0, 6, 0, 0, 0], [-1, 1, 84, 84, 1])
+    x2 = tf.slice(x_, [0, 8, 0, 0, 0], [-1, 1, 84, 84, 1])
+    x3 = tf.slice(x_, [0, 9, 0, 0, 0], [-1, 1, 84, 84, 1])
+    x4 = tf.slice(x_, [0, 10, 0, 0, 0], [-1, 1, 84, 84, 1])
+    x5 = tf.slice(x_, [0, 5, 0, 0, 0], [-1, 1, 84, 84, 1])
+    x6 = tf.slice(x_, [0, 2, 0, 0, 0], [-1, 1, 84, 84, 1])
+    x7 = tf.slice(x_, [0, 11, 0, 0, 0], [-1, 1, 84, 84, 1])
+    prep_layers = tf.concat([x0, x1, x2, x3, x4, x5, x6, x7], 1)
+    tf.reshape(prep_layers, [-1, 8, 84, 84, 1])
+    x_ = prep_layers
+    for i in range(c):
+        with tf.name_scope('Conv'+str(i)):
+            x_ = tf.layers.conv3d(inputs=x_, filters=64*(i+1), use_bias=True, kernel_size=[1, 3, 3], strides=(1,1,1), padding='SAME', activation=tf.nn.relu)
+            x_ = tf.layers.batch_normalization(inputs=x_, training=True)
             print_layer_details(tf.contrib.framework.get_name_scope(), x_.get_shape())
-    with tf.name_scope("Layer_D"):
-        x_avg = tf.layers.average_pooling3d(x_, pool_size=[13, 1, 1], strides=(1,1,1))
-        # print(avg_pool.get_shape())
-        x_flat = tf.layers.flatten(inputs=x_avg)
-        print_layer_details(tf.contrib.framework.get_name_scope(), x_flat.get_shape())
-    for i in range(1):
-        with tf.name_scope("Layer_E_"+str(i)):
-            x_flat = tf.layers.dense(inputs=x_flat, units=16*9)
+            if i % 4 == 0: 
+                with tf.name_scope('Max_Pooling'+str(i)):
+                    x_ = Max_Pooling(x_, [1,3,3], stride=(1,2,2))
+                    print_layer_details(tf.contrib.framework.get_name_scope(), x_.get_shape())
+    with tf.name_scope('Max_Pooling'):
+        x_avg = Max_Pooling(x_, [1, 3, 3], stride=(1,2,2), padding='VALID')
+        print_layer_details(tf.contrib.framework.get_name_scope(), x_avg.get_shape())
+    if c == 3:
+        with tf.name_scope('Additional_Convolution'):
+            x_conv = tf.layers.conv3d(inputs=x_avg, filters=128*c, use_bias=True, kernel_size=[1,5,5], strides=(1,1,1), padding='VALID', activation=tf.nn.relu)
+            x_conv = tf.layers.batch_normalization(inputs=x_conv, training=True)
+            print_layer_details(tf.contrib.framework.get_name_scope(), x_conv.get_shape())
+        with tf.name_scope('Flatten'):
+            x_flat = tf.layers.flatten(x_conv)
             print_layer_details(tf.contrib.framework.get_name_scope(), x_flat.get_shape())
-    with tf.name_scope("Final_Layer"):
-        y_ = tf.layers.dense(inputs=x_flat, units=num_classes)
-
+    else:
+        with tf.name_scope('Flatten'):
+            x_flat = tf.layers.flatten(x_avg)
+            print_layer_details(tf.contrib.framework.get_name_scope(), x_flat.get_shape())
+    with tf.name_scope('Fully_Connected'):
+        if f > 0:
+            x_dense = tf.layers.dense(inputs=x_flat, units=256*f)
+            x_dense = tf.layers.batch_normalization(inputs=x_dense, training=True)
+            print_layer_details(tf.contrib.framework.get_name_scope(), x_dense.get_shape())
+            y_ = tf.layers.dense(inputs=x_dense, units=num_classes)
+        else: 
+            y_ = tf.layers.dense(inputs=x_flat, units=num_classes)
+        
     softmax = tf.nn.softmax(y_)
     
-    
+
     cross_entropy = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(logits=y_, labels=y))
 
     # add an optimiser
@@ -154,8 +149,6 @@ def run_cnn(replays=[], lr=0.5, cfr=1, epochs=15, batch_size=10, capped_batch=10
         close_matchups, supplies = filter_close_matchups(replays, supply_limit=5)
 
         train_file_indices, test_file_indices = generate_random_indices(file_count=len(close_matchups), cap=cap, split_ratio=0.9) 
-        print(len(train_file_indices))
-        print(len(test_file_indices))
         print(train_file_indices, test_file_indices)
         
         remaining_indices, remaining_supplies = get_remaining_indices(file_count=len(close_matchups), ind1=train_file_indices, ind2=test_file_indices, supply = supplies)
@@ -189,7 +182,7 @@ def run_cnn(replays=[], lr=0.5, cfr=1, epochs=15, batch_size=10, capped_batch=10
                 t_acc += test_acc
                 print(" --- Result of Epoch:", (epoch + 1), "Train accuracy: {:.2f}".format(acc*100), "% cost: {:.3f}".format(avg_cost), " test accuracy on {:d}".format(len(test_file_indices)), "samples: {:.2f}".format(t_acc*100), "%")
             else:
-                batches = int(len(test_file_indices))/batch_size
+                batches = int(len(test_file_indices)/batch_size)
                 for i in range(batches):
                     batch_x, batch_y, lis = load_batch(replays, indices=test_file_indices, capped_batch=batch_size, run=i, lastindex=lis,)
                     # _, c = sess.run([optimiser, cross_entropy], feed_dict={x: batch_x, y: batch_y})
@@ -217,7 +210,7 @@ def run_cnn(replays=[], lr=0.5, cfr=1, epochs=15, batch_size=10, capped_batch=10
         li = 0
         supply_acc = np.zeros(10)
         supply_count = np.zeros(10)
-        for i in range(len(remaining_indices)):
+        for i in range(1000):
             xs, ys, li = load_batch(replays, indices=remaining_indices, capped_batch=1, run=i, lastindex=li)
             acc = sess.run(accuracy, feed_dict={x: xs, y: ys})
             #print(remaining_supplies[i])
@@ -226,7 +219,7 @@ def run_cnn(replays=[], lr=0.5, cfr=1, epochs=15, batch_size=10, capped_batch=10
             if i%100==0 and i>0:
                 print("%4d samples evaluated." % (i))
         for i in range(10):
-            test_summary = tf.Summary(value=[tf.Summary.Value(tag='acc_by_supplies', simple_value=(supply_acc[i]/supply_count[i]))])
+            test_summary = tf.Summary(value=[tf.Summary.Value(tag='accuracy by supplies', simple_value=(supply_acc[i]/supply_count[i]))])
             summary_writer.add_summary(summary=test_summary, global_step=i)
             print("Accuracy for samples with a supply difference of %.1f: %6.2f%%" % (i/2, (supply_acc[i]/supply_count[i])))
         print("Overall accuracy on %5d samples: %6.2f%%" % (len(remaining_indices), sum(supply_acc)/sum(supply_count)))

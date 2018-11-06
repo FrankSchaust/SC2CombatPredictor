@@ -19,6 +19,7 @@ import gzip
 import time
 import csv
 import random
+import six
 import pandas as pd
 from absl import app
 
@@ -33,6 +34,24 @@ from lib.unit_constants import *
 from lib.config import SCREEN_RESOLUTION, MINIMAP_RESOLUTION, MAP_PATH, \
     REPLAYS_PARSED_DIR, REPLAY_DIR, REPO_DIR, STANDARD_VERSION
 from data.simulation_pb2 import Battle, Simulation
+
+
+def get_number_of_last_run(base_dir, sub_dirs):
+    last_run_fin = 0
+    for sub_dir in sub_dirs:
+        run_dir = os.path.relpath(sub_dir, base_dir)
+        run_ind = run_dir.split(' ')[1]
+        print(run_ind, last_run_fin)
+        if int(run_ind) > int(last_run_fin):
+            last_run_fin = int(run_ind)
+    return int(last_run_fin)
+                
+def get_immediate_subdirectories(dir):
+    return [name for name in os.listdir(dir)
+            if os.path.isdir(os.path.join(dir, name))]
+
+def print_layer_details(name_scope, shape):
+    print("Layer: %-20s --- Output Dimension: %-25s" % (name_scope, shape))
 
 # Input arguments: 
 # type = String with associated files to load
@@ -55,7 +74,7 @@ def build_file_array(type = 'replays', version = [STANDARD_VERSION]):
         for d in DIRECTORY:
             for root, dir, files in os.walk(d):
                 for file in files:
-                    if file.endswith(".SC2Replay_parsed.gz"):
+                    if file.endswith(".gz"):
                         file_array.append(os.path.join(root, file))
         print("Available Files: ", len(file_array))
     # Routine for log data    
@@ -175,10 +194,13 @@ def read_csv(csv_file):
         elif row[0] == '2':
             winner = row[1]
             winner = winner.replace('[','').replace(']','')
-    dict = {'team_A': string_to_csv(team_a), 'team_B': string_to_csv(team_b), 'winner_code': winner}
-    file.close()
-    return dict
-
+    try:
+        dict = {'team_A': string_to_csv(team_a), 'team_B': string_to_csv(team_b), 'winner_code': winner}
+    
+        file.close()
+        return dict
+    except:
+        print(csv_file)
 def string_to_csv(str):
     str = str.replace('[', '').replace(']', '').replace(' ', '')
     arr = str.split(',')
@@ -340,4 +362,13 @@ def return_unit_values_by_id(id):
     if id == 289:
         return broodling
     if id == 499:
-        return viper    
+        return viper 
+### helpergfunction for resnet
+def get_block(identifier):
+    if isinstance(identifier, six.string_types):
+        res = globals().get(identifier)
+        if not res:
+            raise ValueError('Invalid {}'.format(identifier))
+        return res
+    return identifier
+        

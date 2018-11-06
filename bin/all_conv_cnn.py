@@ -38,31 +38,33 @@ def main():
     learning_rates = [0.05]
     ### constant declarations, the different architectures will be iterated by chosing different learning rates and ratios of convolutions to fully connected layers
     conv_to_fc_ratio = [0.1]
-    epochs = 20
+    epochs = 10
     batch_size = 10
     capped_batch = 50
     num_classes = 3
     depth = 13
-    r=1
     
 	# Loading example files
     replay_parsed_files = []
     replay_parsed_files = build_file_array(version=['1_3b'])
     print(learning_rates, conv_to_fc_ratio)
     
+    
     for lr in learning_rates:
         for cfr in conv_to_fc_ratio:
+        
             # build the folder structure for tensorboard logs
-            
+            base_dir = os.path.join(REPO_DIR, 'tensorboard_logs', 'All_Convolutional_CNN', 'LearningRate_'+str(lr)+'_ConvToFcRatio_'+str(cfr)+'_SampleSize_'+str(capped_batch))
+            os.makedirs(base_dir, exist_ok=True)
+            sub_dirs = get_immediate_subdirectories(base_dir)
+            last_run_fin = get_number_of_last_run(base_dir, sub_dirs)
             # every structure will be trained 10 times
             for n in range(1):
-                tensorboard_dir = os.path.join(REPO_DIR, 'tensorboard_logs', 'inception', 'LearningRate_'+str(lr)+'_ConvToFcRatio_'+str(cfr)+'_SampleSize_'+str(capped_batch), 'Run '+str(r+n))
+                last_run_fin += 1
+                tensorboard_dir = os.path.join(base_dir, 'Run '+str(last_run_fin))
                 os.makedirs(tensorboard_dir, exist_ok=True)
                 run_cnn(replays=replay_parsed_files, lr=lr, cfr=cfr, epochs=epochs, capped_batch=capped_batch, tensorboard_dir=tensorboard_dir)
-                
-                
-def print_layer_details(name_scope, shape):
-    print("Layer: %-20s --- Output Dimension: %-25s" % (name_scope, shape))
+
    
 def run_cnn(replays=[], lr=0.5, cfr=1, epochs=15, batch_size=10, capped_batch=100, depth=13, num_classes=3, tensorboard_dir=""):
     acc = 0
@@ -135,7 +137,7 @@ def run_cnn(replays=[], lr=0.5, cfr=1, epochs=15, batch_size=10, capped_batch=10
         # setup recording variables
         # add a summary to store the accuracy
         cap = capped_batch
-        close_matchups, supplies = filter_close_matchups(replays, supply_limit=6)
+        close_matchups, supplies = filter_close_matchups(replays, version='1_3b', supply_limit=5)
 
         train_file_indices, test_file_indices = generate_random_indices(file_count=len(close_matchups), cap=cap, split_ratio=0.9) 
         print(len(train_file_indices))
@@ -163,7 +165,7 @@ def run_cnn(replays=[], lr=0.5, cfr=1, epochs=15, batch_size=10, capped_batch=10
                 acc += train_acc / batches
             if len(test_file_indices) < 30: 
                 batch_x, batch_y, lis = load_batch(replays, indices=test_file_indices, capped_batch=len(test_file_indices), run=1, lastindex=lis,)
-                _, c = sess.run([optimiser, cross_entropy], feed_dict={x: batch_x, y: batch_y})
+                # _, c = sess.run([optimiser, cross_entropy], feed_dict={x: batch_x, y: batch_y})
                 test_acc = sess.run(accuracy, feed_dict={x: batch_x, y: batch_y})
                 #sys.stdout.write("\r[%-20s] %.2f%% --- Batch %d from %d" % ('='*int(((i+1)/total_batch)*20), ((i+1)/total_batch)*100, i+1, total_batch))
                 #sys.stdout.flush()
@@ -173,10 +175,10 @@ def run_cnn(replays=[], lr=0.5, cfr=1, epochs=15, batch_size=10, capped_batch=10
                 t_acc += test_acc
                 print(" --- Result of Epoch:", (epoch + 1), "Train accuracy: {:.2f}".format(acc*100), "% cost: {:.3f}".format(avg_cost), " test accuracy on {:d}".format(len(test_file_indices)), "samples: {:.2f}".format(t_acc*100), "%")
             else:
-                batches = int(len(test_file_indices))/batch_size
+                batches = int(len(test_file_indices)/batch_size)
                 for i in range(batches):
                     batch_x, batch_y, lis = load_batch(replays, indices=test_file_indices, capped_batch=batch_size, run=i, lastindex=lis,)
-                    _, c = sess.run([optimiser, cross_entropy], feed_dict={x: batch_x, y: batch_y})
+                    # _, c = sess.run([optimiser, cross_entropy], feed_dict={x: batch_x, y: batch_y})
                     test_acc = sess.run(accuracy, feed_dict={x: batch_x, y: batch_y})
                     #sys.stdout.write("\r[%-20s] %.2f%% --- Batch %d from %d" % ('='*int(((i+1)/total_batch)*20), ((i+1)/total_batch)*100, i+1, total_batch))
                     #sys.stdout.flush()
@@ -201,7 +203,7 @@ def run_cnn(replays=[], lr=0.5, cfr=1, epochs=15, batch_size=10, capped_batch=10
         li = 0
         supply_acc = np.zeros(10)
         supply_count = np.zeros(10)
-        for i in range(len(remaining_indices)):
+        for i in range(100):#len(remaining_indices)):
             xs, ys, li = load_batch(replays, indices=remaining_indices, capped_batch=1, run=i, lastindex=li)
             acc = sess.run(accuracy, feed_dict={x: xs, y: ys})
             #print(remaining_supplies[i])
@@ -210,9 +212,14 @@ def run_cnn(replays=[], lr=0.5, cfr=1, epochs=15, batch_size=10, capped_batch=10
             if i%100==0 and i>0:
                 print("%4d samples evaluated." % (i))
         for i in range(10):
-            test_summary = tf.Summary(value=[tf.Summary.Value(tag='acc'+str(i), simple_value=(supply_acc[i]/supply_count[i]))])
+            if supply_count[i] == 0:
+                avg = 0
+            else:
+                avg = supply_acc[i]/supply_count[i]
+            test_summary = tf.Summary(value=[tf.Summary.Value(tag='acc_supply', simple_value=avg)])
             summary_writer.add_summary(summary=test_summary, global_step=i)
-            print("Accuracy for samples with a supply difference of %.1f: %6.2f%%" % (i/2, (supply_acc[i]/supply_count[i])))
+            summary_writer.flush()
+            print("Accuracy for samples with a supply difference of %.1f: %6.2f%%" % (i/2, avg))
         print("Overall accuracy on %5d samples: %6.2f%%" % (len(remaining_indices), sum(supply_acc)/sum(supply_count)))
         #writer.add_graph(sess.graph)
         #print(sess.run(accuracy, feed_dict={x: xs_test, y: ys_test}))

@@ -36,6 +36,8 @@ def load_batch(replay_parsed_files, indices = [], capped_batch = 1000, run = 0, 
     i = 0
     n = lastindex
     to_cap = capped_batch
+    if indices == []:
+        indices = range(len(replay_parsed_files))
     while i < to_cap:
         simulation = simulation_pb2.Simulation()
         if n >= len(replay_parsed_files):
