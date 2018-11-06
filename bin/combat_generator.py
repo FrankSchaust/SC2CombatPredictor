@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copyright 2017 Lukas Schmelzeisen. All Rights Reserved.
+# Copyright 2017 Frank Schaust and Lukas Schmelzeisen. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -33,7 +33,7 @@ def main(ununsed_argv):
     fail_counter = 0
     while 1:
         try: 
-            game_routine(version='1_3b')
+            game_routine(version='1_3d_10sup')
             time.sleep(5)
             demo_counter += 1
         except RuntimeError:

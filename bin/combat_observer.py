@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copyright 2017 Lukas Schmelzeisen. All Rights Reserved.
+# Copyright 2017 Frank Schaust and Lukas Schmelzeisen. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -33,13 +33,12 @@ from data.simulation_pb2 import Battle, Simulation
 
 
 def main(unused_argv, version=STANDARD_VERSION):
-    version = '1_3b'
+    version = '1_3d_10sup'
     replay_files = []
     for root, dir, files in os.walk(os.path.join(REPLAY_DIR, version)):
         for file in files:
             if file.endswith(".SC2Replay"):
                 replay_files.append(os.path.join(root, file))
-
         for replay_file in replay_files:
             try:
                 print('Going to parse replay "{}".'.format(replay_file),
@@ -84,7 +83,14 @@ def main(unused_argv, version=STANDARD_VERSION):
                                                            y=MINIMAP_RESOLUTION))),
                         # Ensure that fog of war won't hinder observations.
                         disable_fog=True))
-
+                    info = controller.replay_info(replay_data=replay_data)
+                    time = info.game_duration_seconds
+                    if time > 6000:
+                        os.remove(replay_file)
+                        print('removed %s because game time exceeded 1 hour (actual replay duration was %.2f)'  % (replay_file, time))
+                        break;
+                    else: 
+                        print('File okay, Duration is %.2f' % (time))
                     round_num = 0
                     curr_battle = None
                     last_num_units, curr_num_units = -1, -1
@@ -186,21 +192,26 @@ def main(unused_argv, version=STANDARD_VERSION):
                 print("ValueError going for next replay")
             except AssertionError:
                 print('AssertionError going for next replay')
-            # if (error_flag == False):
-                # replay_parsed_file = os.path.join(
-                    # REPLAYS_PARSED_DIR,
-                    # os.path.relpath(replay_file, REPLAY_DIR).replace(
-                        # '.SC2Replay', '.SC2Replay_parsed'))
-                # print('Replay completed. Saving parsed replay to "{}".'
-                      # .format(replay_parsed_file), file=sys.stderr)
-                # os.makedirs(REPLAYS_PARSED_DIR, exist_ok=True)
-                # with open(replay_parsed_file, 'wb') as file:
-                    # file.write(simulation.SerializeToString())
-                # os.rename(replay_file, os.path.join(REPO_DIR, "parsed_basic", os.path.relpath(replay_file, REPLAY_DIR)))
+            except KeyboardInterrupt:
+                print('Process finished')
+                break;
+            except:
+                print('Generell Error going for next replay')
+                # if (error_flag == False):
+                    # replay_parsed_file = os.path.join(
+                        # REPLAYS_PARSED_DIR,
+                        # os.path.relpath(replay_file, REPLAY_DIR).replace(
+                            # '.SC2Replay', '.SC2Replay_parsed'))
+                    # print('Replay completed. Saving parsed replay to "{}".'
+                          # .format(replay_parsed_file), file=sys.stderr)
+                    # os.makedirs(REPLAYS_PARSED_DIR, exist_ok=True)
+                    # with open(replay_parsed_file, 'wb') as file:
+                        # file.write(simulation.SerializeToString())
+                    # os.rename(replay_file, os.path.join(REPO_DIR, "parsed_basic", os.path.relpath(replay_file, REPLAY_DIR)))
             os.makedirs(os.path.join(REPO_DIR, 'parsed_basic', version), exist_ok=True)
             os.rename(replay_file, os.path.join(REPO_DIR, "parsed_basic", version, os.path.relpath(replay_file, os.path.join(REPLAY_DIR, version))))
             print('Done.', file=sys.stderr)
-   
+       
 
 
 def entry_point():

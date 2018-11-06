@@ -37,11 +37,12 @@ def main():
     # Set numpy print options so that numpy arrays containing feature layers
     # are printed completely. Useful for debugging.
     np.set_printoptions(threshold=(84 * 84), linewidth=(84 * 2 + 10))
-    depth = 20
-    use_version = '1_3a'
+    depth = 13
+    use_version = ['1_3a', '1_3b', '1_3c', '1_3d']
 	# Loading example files
     replay_parsed_files = build_file_array(version=use_version)
     li = 0
+    m = 0
     emptyCounter = 0
     overallCounter = 0
     countPerFeatureLeft = np.zeros(20)
@@ -52,8 +53,7 @@ def main():
     rightc = []
     leftc = []
     while  li < len(replay_parsed_files):
-        xs_t, xs_tt, ys_t, ys_tt, li = load_batch(replay_parsed_files, 1000, 0, li, True, False)
-        xs_t = np.append(xs_t, xs_tt, axis=0)
+        xs_t, ys_t, li = load_batch(replay_parsed_files, capped_batch=1000, run = m, lastindex=li)
         
         for test in xs_t:
             
@@ -80,17 +80,18 @@ def main():
                     #print("one side empty!")
                     #emptyCounter += 1
                     countPerFeatureLeft[n] += 1
-                    if n == 6:
+                    if n == 8:
                         print(replay_parsed_files[overallCounter])
                 countPerFeatureMedianRight[n] +=  right
                 if right == 0:
                     countPerFeatureRight[n] += 1
-                    if n == 6:
+                    if n == 8:
                         print(replay_parsed_files[overallCounter])
                 countPerFeatureMedianLeft[n] += left
                 
                 n += 1
             overallCounter += 1
+        m += 1
     print(countPerFeatureLeft)
     print(countPerFeatureRight)
     print(countPerFeatureMedianLeft)
@@ -122,7 +123,6 @@ def main():
     while j < len(match_arr):
         hp_A = 0
         hp_B = 0
- 
         if len(match_arr[j]['team_A']) < 1 or len(match_arr[j]['team_B']) < 1:
            print(replay_log_files[j])
            logfailureCounter += 1
@@ -131,12 +131,16 @@ def main():
         for id in match_arr[j]['team_A']:
             if str(id) == '85':
                 continue
-            unit = return_unit_values_by_id(id)
-            hp_A += unit['hp']
+            unit = return_unit_values_by_id(int(id))
+            try:
+                hp_A += unit['hp']
+            except:
+                print(id)
+                print(unit)
         for id in match_arr[j]['team_B']:
             if str(id) == '85':
                 continue
-            unit = return_unit_values_by_id(id)
+            unit = return_unit_values_by_id(int(id))
             hp_B += unit['hp'] 
         hpa.append(hp_A)
         hpb.append(hp_B)
