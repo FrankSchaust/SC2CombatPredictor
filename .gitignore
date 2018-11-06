@@ -9,6 +9,10 @@
 
 #ignore all tensorboard data
 *.DESKTOP-6R44I4A
+
+#ignore pycache files
+*.cpython-36.pyc
+
 #ignore following directories
 1_3a/
 log/
