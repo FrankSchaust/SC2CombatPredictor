@@ -34,21 +34,22 @@ def Concat(x):
 
 # definitions for inception v4
 def stem(input, scope):
+    base = 8    
     with tf.name_scope(scope):
-        x_ = Conv_Layer(input, filter=32, kernel=[1,3,3], layer_name=scope+'_conv1')
-        x_ = Conv_Layer(x_, filter=32, kernel=[1,3,3], padding='VALID', layer_name=scope+'_conv2')
-        x = Conv_Layer(x_, filter=64, kernel=[1,3,3], layer_name=scope+'_conv3')
+        x_ = Conv_Layer(input, filter=base, kernel=[1,3,3], layer_name=scope+'_conv1')
+        x_ = Conv_Layer(x_, filter=base, kernel=[1,3,3], padding='VALID', layer_name=scope+'_conv2')
+        x = Conv_Layer(x_, filter=base*2, kernel=[1,3,3], layer_name=scope+'_conv3')
         # max_x_1 = Max_Pooling(x)
         # conv_x_1 = Conv_Layer(x, filter=96, kernel=[1,3,3], stride=(1,2,2), padding='VALID', layer_name=scope+'_conv4')
         
         # x = Concat([max_x_1, conv_x_1])
-        split_x_1 = Conv_Layer(x, filter=64, kernel=[1,1,1], layer_name=scope+'_split_conv1')
-        split_x_1 = Conv_Layer(split_x_1, filter=96, kernel=[1,3,3], padding='VALID', layer_name=scope+'_split_conv2')
+        split_x_1 = Conv_Layer(x, filter=base*2, kernel=[1,1,1], layer_name=scope+'_split_conv1')
+        split_x_1 = Conv_Layer(split_x_1, filter=base*3, kernel=[1,3,3], padding='VALID', layer_name=scope+'_split_conv2')
         
-        split_x_2 = Conv_Layer(x, filter=64, kernel=[1,1,1], layer_name=scope+'_split_conv3')
-        split_x_2 = Conv_Layer(split_x_2, filter=64, kernel=[1,7,1], layer_name=scope+'_split_conv4')
-        split_x_2 = Conv_Layer(split_x_2, filter=64, kernel=[1,1,7], layer_name=scope+'_split_conv5')
-        split_x_2 = Conv_Layer(split_x_2, filter=96, kernel=[1,3,3], padding='VALID', layer_name=scope+'_split_conv6')
+        split_x_2 = Conv_Layer(x, filter=base*2, kernel=[1,1,1], layer_name=scope+'_split_conv3')
+        split_x_2 = Conv_Layer(split_x_2, filter=base*2, kernel=[1,7,1], layer_name=scope+'_split_conv4')
+        split_x_2 = Conv_Layer(split_x_2, filter=base*2, kernel=[1,1,7], layer_name=scope+'_split_conv5')
+        split_x_2 = Conv_Layer(split_x_2, filter=base*3, kernel=[1,3,3], padding='VALID', layer_name=scope+'_split_conv6')
         
         x = Concat([split_x_1, split_x_2])
         # split_conv_x = Conv_Layer(x, filter=192, kernel=[1,3,3], stride=(1,2,2), padding='VALID', layer_name=scope+'_conv5')
@@ -59,77 +60,81 @@ def stem(input, scope):
         return x
 
 def inception_a( input, scope):
+    base = 8
     with tf.name_scope(scope):
         # far left side
         x_fl = Avg_Pooling(input)
-        x_fl = Conv_Layer(x_fl, filter=96, kernel=[1,1,1], layer_name=scope+"_split_conv1")
+        x_fl = Conv_Layer(x_fl, filter=base*3, kernel=[1,1,1], layer_name=scope+"_split_conv1")
         # close left side
-        x_cl = Conv_Layer(input, filter=96, kernel=[1,1,1], layer_name=scope+"_split_conv2")
+        x_cl = Conv_Layer(input, filter=base*3, kernel=[1,1,1], layer_name=scope+"_split_conv2")
         # close right side
-        x_cr = Conv_Layer(input, filter=64, kernel=[1,1,1], layer_name=scope+"_split_conv3")
-        x_cr = Conv_Layer(x_cr, filter=96, kernel=[1,3,3], layer_name=scope+"_split_conv4")
+        x_cr = Conv_Layer(input, filter=base*2, kernel=[1,1,1], layer_name=scope+"_split_conv3")
+        x_cr = Conv_Layer(x_cr, filter=base*3, kernel=[1,3,3], layer_name=scope+"_split_conv4")
         #far right side
-        x_fr = Conv_Layer(input, filter=64, kernel=[1,1,1], layer_name=scope+"_split_conv5")
-        x_fr = Conv_Layer(x_fr, filter=96, kernel=[1,3,3], layer_name=scope+"_split_conv6")
-        x_fr = Conv_Layer(x_fr, filter=96, kernel=[1,3,3], layer_name=scope+"_split_conv7")
+        x_fr = Conv_Layer(input, filter=base*2, kernel=[1,1,1], layer_name=scope+"_split_conv5")
+        x_fr = Conv_Layer(x_fr, filter=base*3, kernel=[1,3,3], layer_name=scope+"_split_conv6")
+        x_fr = Conv_Layer(x_fr, filter=base*3, kernel=[1,3,3], layer_name=scope+"_split_conv7")
         
         x = Concat([x_fl, x_cl, x_cr, x_fr])
         x = tf.layers.batch_normalization(inputs=x, training=True)
         return x
         
 def inception_b( input, scope):
+    base = 8
     with tf.name_scope(scope):
         # far left side
         x_fl = Avg_Pooling(input)
-        x_fl = Conv_Layer(x_fl, filter=128, kernel=[1,1,1], layer_name=scope+"_split_conv1")
+        x_fl = Conv_Layer(x_fl, filter=base*4, kernel=[1,1,1], layer_name=scope+"_split_conv1")
         # close left side
-        x_cl = Conv_Layer(input, filter=384, kernel=[1,1,1], layer_name=scope+"_split_conv2")
+        x_cl = Conv_Layer(input, filter=base*12, kernel=[1,1,1], layer_name=scope+"_split_conv2")
         # close right side
-        x_cr = Conv_Layer(input, filter=192, kernel=[1,1,1], layer_name=scope+"_split_conv3")
-        x_cr = Conv_Layer(x_cr, filter=224, kernel=[1,1,7], layer_name=scope+"_split_conv4")
-        x_cr = Conv_Layer(x_cr, filter=256, kernel=[1,1,7], layer_name=scope+"_split_conv5")
+        x_cr = Conv_Layer(input, filter=base*6, kernel=[1,1,1], layer_name=scope+"_split_conv3")
+        x_cr = Conv_Layer(x_cr, filter=base*7, kernel=[1,1,7], layer_name=scope+"_split_conv4")
+        x_cr = Conv_Layer(x_cr, filter=base*8, kernel=[1,1,7], layer_name=scope+"_split_conv5")
         #far right side
-        x_fr = Conv_Layer(input, filter=192, kernel=[1,1,1], layer_name=scope+"_split_conv6")
-        x_fr = Conv_Layer(x_fr, filter=192, kernel=[1,1,7], layer_name=scope+"_split_conv7")
-        x_fr = Conv_Layer(x_fr, filter=224, kernel=[1,7,1], layer_name=scope+"_split_conv8")
-        x_fr = Conv_Layer(x_fr, filter=224, kernel=[1,1,7], layer_name=scope+"_split_conv9")
-        x_fr = Conv_Layer(x_fr, filter=256, kernel=[1,7,1], layer_name=scope+"_split_conv10")
+        x_fr = Conv_Layer(input, filter=base*6, kernel=[1,1,1], layer_name=scope+"_split_conv6")
+        x_fr = Conv_Layer(x_fr, filter=base*6, kernel=[1,1,7], layer_name=scope+"_split_conv7")
+        x_fr = Conv_Layer(x_fr, filter=base*7, kernel=[1,7,1], layer_name=scope+"_split_conv8")
+        x_fr = Conv_Layer(x_fr, filter=base*7, kernel=[1,1,7], layer_name=scope+"_split_conv9")
+        x_fr = Conv_Layer(x_fr, filter=base*8, kernel=[1,7,1], layer_name=scope+"_split_conv10")
         
         x = Concat([x_fl, x_cl, x_cr, x_fr])
         x = tf.layers.batch_normalization(inputs=x, training=True)
         return x        
     
 def inception_c( input, scope):
+    base = 8
     with tf.name_scope(scope):
         # far left side
         x_fl = Avg_Pooling(input)
-        x_fl = Conv_Layer(x_fl, filter=256, kernel=[1,1,1], layer_name=scope+"_split_conv1")
+        x_fl = Conv_Layer(x_fl, filter=base*8, kernel=[1,1,1], layer_name=scope+"_split_conv1")
         # close left side
-        x_cl = Conv_Layer(input, filter=256, kernel=[1,1,1], layer_name=scope+"_split_conv2")
+        x_cl = Conv_Layer(input, filter=base*8, kernel=[1,1,1], layer_name=scope+"_split_conv2")
         # close right side
-        x_cr = Conv_Layer(input, filter=384, kernel=[1,1,1], layer_name=scope+"_split_conv3")
-        x_cr_1 = Conv_Layer(x_cr, filter=256, kernel=[1,1,3], layer_name=scope+"_split_conv4")
-        x_cr_2 = Conv_Layer(x_cr, filter=256, kernel=[1,3,1], layer_name=scope+"_split_conv5")
+        x_cr = Conv_Layer(input, filter=base*12, kernel=[1,1,1], layer_name=scope+"_split_conv3")
+        x_cr_1 = Conv_Layer(x_cr, filter=base*8, kernel=[1,1,3], layer_name=scope+"_split_conv4")
+        x_cr_2 = Conv_Layer(x_cr, filter=base*8, kernel=[1,3,1], layer_name=scope+"_split_conv5")
         #far right side
-        x_fr = Conv_Layer(input, filter=384, kernel=[1,1,1], layer_name=scope+"_split_conv6")
-        x_fr = Conv_Layer(x_fr, filter=448, kernel=[1,1,3], layer_name=scope+"_split_conv7")
-        x_fr = Conv_Layer(x_fr, filter=512, kernel=[1,3,1], layer_name=scope+"_split_conv8")
-        x_fr_1 = Conv_Layer(x_fr, filter=256, kernel=[1,3,1], layer_name=scope+"_split_conv9")
-        x_fr_2 = Conv_Layer(x_fr, filter=256, kernel=[1,1,3], layer_name=scope+"_split_conv10")
+        x_fr = Conv_Layer(input, filter=base*12, kernel=[1,1,1], layer_name=scope+"_split_conv6")
+        x_fr = Conv_Layer(x_fr, filter=base*14, kernel=[1,1,3], layer_name=scope+"_split_conv7")
+        x_fr = Conv_Layer(x_fr, filter=base*16, kernel=[1,3,1], layer_name=scope+"_split_conv8")
+        x_fr_1 = Conv_Layer(x_fr, filter=base*8, kernel=[1,3,1], layer_name=scope+"_split_conv9")
+        x_fr_2 = Conv_Layer(x_fr, filter=base*8, kernel=[1,1,3], layer_name=scope+"_split_conv10")
         
         x = Concat([x_fl, x_cl, x_cr_1, x_cr_2, x_fr_1, x_fr_2])
         x = tf.layers.batch_normalization(inputs=x, training=True)
         return x 
    
 def reduction_a( input, scope):
+    base = 8
     with tf.name_scope(scope):
-        max_pool = tf.layers.max_pooling3d(input, pool_size=[3,3,3], strides=(2,2,2), padding='VALID')
+        max_pool = tf.layers.max_pooling3d(input, pool_size=[1,3,3], strides=(1,2,2), padding='VALID')
 
-        conv_1 = Conv_Layer(input, filter=384, kernel=[3,3,3], stride=(2,2,2), padding='VALID', layer_name=scope+"_split_conv1")
+        conv_1 = Conv_Layer(input, filter=base*12, kernel=[1,3,3], stride=(1,2,2), padding='VALID', layer_name=scope+"_split_conv1")
         
-        conv_2 = Conv_Layer(input, filter=256, kernel=[1,1,1], layer_name=scope+"_split_conv2")
-        conv_2 = Conv_Layer(conv_2, filter=256, kernel=[1,3,3], layer_name=scope+"_split_conv3")
-        conv_2 = Conv_Layer(conv_2, filter=384, kernel=[3,3,3], stride=(2,2,2), padding='VALID', layer_name=scope+"_split_conv4")
+        conv_2 = Conv_Layer(input, filter=base*8, kernel=[1,1,1], layer_name=scope+"_split_conv2")
+        conv_2 = Conv_Layer(conv_2, filter=base*8, kernel=[1,3,3], layer_name=scope+"_split_conv3")
+        conv_2 = Conv_Layer(conv_2, filter=base*12, kernel=[1,3,3], stride=(1,2,2), padding='VALID', layer_name=scope+"_split_conv4")
         
         x = Concat([max_pool, conv_1, conv_2])
         x = tf.layers.batch_normalization(inputs=x, training=True)
@@ -137,18 +142,19 @@ def reduction_a( input, scope):
         return x
    
 def reduction_b( input, scope):
+    base = 8
     with tf.name_scope(scope):
-        max_pool = tf.layers.max_pooling3d(input, pool_size=[2,3,3], strides=(2,2,2), padding='VALID')
+        max_pool = tf.layers.max_pooling3d(input, pool_size=[1,3,3], strides=(1,2,2), padding='VALID')
 
-        conv_1 = Conv_Layer(input, filter=256, kernel=[1,1,1], layer_name=scope+"_split_conv1")
-        conv_1 = Conv_Layer(conv_1, filter=384, kernel=[2,3,3], stride=(2,2,2), padding='VALID', layer_name=scope+"_split_conv2")
+        conv_1 = Conv_Layer(input, filter=base*8, kernel=[1,1,1], layer_name=scope+"_split_conv1")
+        conv_1 = Conv_Layer(conv_1, filter=base*12, kernel=[1,3,3], stride=(1,2,2), padding='VALID', layer_name=scope+"_split_conv2")
         
-        conv_2 = Conv_Layer(input, filter=256, kernel=[1,1,1], layer_name=scope+"_split_conv3")
-        conv_2 = Conv_Layer(conv_2, filter=288, kernel=[2,3,3], stride=(2,2,2), padding='VALID', layer_name=scope+"_split_conv4")
+        conv_2 = Conv_Layer(input, filter=base*8, kernel=[1,1,1], layer_name=scope+"_split_conv3")
+        conv_2 = Conv_Layer(conv_2, filter=base*9, kernel=[1,3,3], stride=(1,2,2), padding='VALID', layer_name=scope+"_split_conv4")
         
-        conv_3 = Conv_Layer(input, filter=256, kernel=[1,1,1], layer_name=scope+"_split_conv5")
-        conv_3 = Conv_Layer(conv_3, filter=288, kernel=[1,3,3], layer_name=scope+"_split_conv6")
-        conv_3 = Conv_Layer(conv_3, filter=320, kernel=[2,3,3], stride=(2,2,2), padding='VALID', layer_name=scope+"_split_conv7")
+        conv_3 = Conv_Layer(input, filter=base*8, kernel=[1,1,1], layer_name=scope+"_split_conv5")
+        conv_3 = Conv_Layer(conv_3, filter=base*9, kernel=[1,3,3], layer_name=scope+"_split_conv6")
+        conv_3 = Conv_Layer(conv_3, filter=base*10, kernel=[1,3,3], stride=(1,2,2), padding='VALID', layer_name=scope+"_split_conv7")
         
         x = Concat([max_pool, conv_1, conv_2, conv_3])
         x = tf.layers.batch_normalization(inputs=x, training=True)
@@ -260,7 +266,7 @@ def residual_block_3d(input, block_function, filters, repetitions, kernel_regula
             if i == 0 and not is_first_layer:
                 strides=(1, 2, 2)
             input = block_function(input, filters=filters, strides=strides, kernel_regularizer=kernel_regularizer, is_first_block_of_first_layer=(is_first_layer and i == 0))   
-            print_layer_details(scope + '_' + str(i), input.get_shape())
+            param = print_layer_details(scope + '_' + str(i), input.get_shape())
     return input
     
 ### define basic block 

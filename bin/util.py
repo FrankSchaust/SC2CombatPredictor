@@ -21,6 +21,7 @@ import csv
 import random
 import six
 import pandas as pd
+import tensorflow as tf
 from absl import app
 
 from pysc2 import run_configs
@@ -29,6 +30,7 @@ from s2clientprotocol.common_pb2 import Size2DI
 from s2clientprotocol.sc2api_pb2 import InterfaceOptions, RequestStartReplay, \
     SpatialCameraSetup
 
+from bin.load_batch import *
 from bin.read_csv import *
 from lib.unit_constants import *
 from lib.config import SCREEN_RESOLUTION, MINIMAP_RESOLUTION, MAP_PATH, \
@@ -45,13 +47,25 @@ def get_number_of_last_run(base_dir, sub_dirs):
         if int(run_ind) > int(last_run_fin):
             last_run_fin = int(run_ind)
     return int(last_run_fin)
-                
+
+
 def get_immediate_subdirectories(dir):
     return [name for name in os.listdir(dir)
             if os.path.isdir(os.path.join(dir, name))]
 
+def get_params(tv):
+    para = 0
+    for v in tv:
+        shape = v.get_shape()
+        variable_parameters = 1
+        for dim in shape:
+            variable_parameters *= dim.value
+        para += variable_parameters
+    return para
+
 def print_layer_details(name_scope, shape):
-    print("Layer: %-20s --- Output Dimension: %-25s" % (name_scope, shape))
+    para = get_params(tf.trainable_variables())
+    print("Layer: %-50s --- Output Dimension: %-30s --- Sum of Trainable Parameters: %-10s" % (name_scope, shape, para))
 
 # Input arguments: 
 # type = String with associated files to load
@@ -75,6 +89,8 @@ def build_file_array(type = 'replays', version = [STANDARD_VERSION]):
             for root, dir, files in os.walk(d):
                 for file in files:
                     if file.endswith(".gz"):
+                        if file.endswith("_2.SC2Replay_parsed.gz") or file.endswith("_1.SC2Replay_parsed.gz"):
+                            continue
                         file_array.append(os.path.join(root, file))
         print("Available Files: ", len(file_array))
     # Routine for log data    
@@ -89,6 +105,15 @@ def build_file_array(type = 'replays', version = [STANDARD_VERSION]):
                 for file in files:
                     if file.endswith(".csv"):
                         file_array.append(os.path.join(root, file))
+    if type == 'csv':
+        for v in version:
+            PATH.append(os.path.join(REPO_DIR, 'Proc_Data_', v))
+        for p in PATH:
+            for root, dir, files in os.walk(p):
+                for file in files:
+                    if file.endswith(".csv"):
+                        file_array.append(os.path.join(root, file))
+        print("Available Files: ", len(file_array))
     return file_array
     
 def generate_random_indices(file_count = 0, cap = 0, split_ratio = 0.9):
@@ -98,29 +123,145 @@ def generate_random_indices(file_count = 0, cap = 0, split_ratio = 0.9):
     test_file_array = file_array[-(split+1):]
     
     return train_file_array, test_file_array
-    
-def filter_close_matchups(replays = [], supply_limit = 0, version = STANDARD_VERSION):
+
+
+def remove_zero_layers(x_):
+    # remove zero matrices
+    x0 = tf.slice(x_, [0, 0, 0, 0, 0], [-1, 1, 84, 84, 1])
+    x1 = tf.slice(x_, [0, 6, 0, 0, 0], [-1, 1, 84, 84, 1])
+    x2 = tf.slice(x_, [0, 8, 0, 0, 0], [-1, 1, 84, 84, 1])
+    x3 = tf.slice(x_, [0, 9, 0, 0, 0], [-1, 1, 84, 84, 1])
+    x4 = tf.slice(x_, [0, 10, 0, 0, 0], [-1, 1, 84, 84, 1])
+    x5 = tf.slice(x_, [0, 5, 0, 0, 0], [-1, 1, 84, 84, 1])
+    x6 = tf.slice(x_, [0, 2, 0, 0, 0], [-1, 1, 84, 84, 1])
+    x7 = tf.slice(x_, [0, 11, 0, 0, 0], [-1, 1, 84, 84, 1])
+    prep_layers = tf.concat([x0, x1, x2, x3, x4, x5, x6, x7], 1)
+    tf.reshape(prep_layers, [-1, 8, 84, 84, 1])
+    return prep_layers
+
+def run_cnn(replays, learning_rate, epochs, batch_size, capped_batch, depth, num_classes, optimiser, cross_entropy, accuracy, init_op, saver, tensorboard_dir, x, y, versions, supply=5):
+
+   with tf.Session() as sess:
+        summary_writer = tf.summary.FileWriter(tensorboard_dir, sess.graph)
+        # initialise the variables
+        sess.run(init_op)
+        # setup recording variables
+        # add a summary to store the accuracy
+        cap = capped_batch
+        close_matchups, supplies = filter_close_matchups(replays, versions=versions, supply_limit=supply)
+
+        train_file_indices, test_file_indices = generate_random_indices(file_count=len(close_matchups), cap=cap, split_ratio=0.9) 
+        # print(len(train_file_indices))
+        # print(len(test_file_indices))
+        # print(train_file_indices, test_file_indices)
+        
+        remaining_indices, remaining_supplies = get_remaining_indices(file_count=len(close_matchups), ind1=train_file_indices, ind2=test_file_indices, supply = supplies)
+        for epoch in range(epochs):
+            avg_cost = 0
+            acc = 0
+            t_acc = 0
+            ys_test = []
+            xs_test = []
+            li = 0
+            lis = 0
+            last_batch_acc = 0
+            batches = int(len(train_file_indices)/batch_size)
+            for i in range(batches):
+                batch_x, batch_y, li = load_batch(replays, indices=train_file_indices, capped_batch=batch_size, run=i, lastindex=li, train=True)
+                _, c = sess.run([optimiser, cross_entropy], feed_dict={x: batch_x, y: batch_y})
+                train_acc = sess.run(accuracy, feed_dict={x: batch_x, y: batch_y})
+                sys.stdout.write("\r[%-20s] %6.2f%% --- Batch %2d from %d --- Latest Acc: %6.2f%%" % ('='*int(((i+1)/batches)*20), ((i+1)/batches)*100, i+1, batches, train_acc*100))
+                sys.stdout.flush()
+                avg_cost += c / batches
+                acc += train_acc / batches
+            if len(test_file_indices) < 30: 
+                batch_x, batch_y, lis = load_batch(replays, indices=test_file_indices, capped_batch=len(test_file_indices), run=1, lastindex=lis,)
+                # _, c = sess.run([optimiser, cross_entropy], feed_dict={x: batch_x, y: batch_y})
+                test_acc = sess.run(accuracy, feed_dict={x: batch_x, y: batch_y})
+                #sys.stdout.write("\r[%-20s] %.2f%% --- Batch %d from %d" % ('='*int(((i+1)/total_batch)*20), ((i+1)/total_batch)*100, i+1, total_batch))
+                #sys.stdout.flush()
+                #avg_cost += c / total_batch
+                #xs_test.append(batch_x)
+                #ys_test.append(batch_y)
+                t_acc += test_acc
+                print(" --- Result of Epoch:", (epoch + 1), "Train accuracy: {:.2f}".format(acc*100), "% cost: {:.3f}".format(avg_cost), " test accuracy on {:d}".format(len(test_file_indices)), "samples: {:.2f}".format(t_acc*100), "%")
+            else:
+                batches = int(len(test_file_indices)/batch_size)
+                for i in range(batches):
+                    batch_x, batch_y, lis = load_batch(replays, indices=test_file_indices, capped_batch=batch_size, run=i, lastindex=lis,)
+                    # _, c = sess.run([optimiser, cross_entropy], feed_dict={x: batch_x, y: batch_y})
+                    test_acc = sess.run(accuracy, feed_dict={x: batch_x, y: batch_y})
+                    #sys.stdout.write("\r[%-20s] %.2f%% --- Batch %d from %d" % ('='*int(((i+1)/total_batch)*20), ((i+1)/total_batch)*100, i+1, total_batch))
+                    #sys.stdout.flush()
+                    #avg_cost += c / total_batch
+                    #xs_test.append(batch_x)
+                    #ys_test.append(batch_y)
+                    t_acc += test_acc / batches
+                print(" --- Result of Epoch:", (epoch + 1), "Train accuracy: {:.2f}".format(acc*100), "% cost: {:.3f}".format(avg_cost), " test accuracy on {:d}".format(batches*batch_size), "samples: {:.2f}".format(t_acc*100), "%")
+            train_summary = tf.Summary(value=[tf.Summary.Value(tag='train_loss', simple_value=avg_cost),
+                                              tf.Summary.Value(tag='train_accuracy', simple_value=acc),
+                                              tf.Summary.Value(tag='test_accuracy', simple_value=t_acc)])
+
+
+
+            summary_writer.add_summary(summary=train_summary, global_step=epoch)
+            summary_writer.flush()
+
+
+        print("\nTraining complete!")
+        save_path = saver.save(sess, os.path.join(tensorboard_dir, "model.ckpt"))
+        # Declare variables for the summary
+        li = 0
+        supply_acc = np.zeros(supply*2)
+        supply_count = np.zeros(supply*2)
+        for i in range(len(remaining_indices)):
+            xs, ys, li = load_batch(replays, indices=remaining_indices, capped_batch=1, run=i, lastindex=li)
+            acc = sess.run(accuracy, feed_dict={x: xs, y: ys})
+            #print(remaining_supplies[i])
+            supply_acc[int(remaining_supplies[i]*2)] += acc
+            supply_count[int(remaining_supplies[i]*2)] += 1
+            if i%100==0 and i>0:
+                print("%4d samples evaluated." % (i))
+        for i in range(supply*2):
+            if supply_count[i] == 0:
+                avg = 0
+            else:
+                avg = supply_acc[i]/supply_count[i]
+            test_summary = tf.Summary(value=[tf.Summary.Value(tag='acc_supply', simple_value=avg)])
+            summary_writer.add_summary(summary=test_summary, global_step=i)
+            summary_writer.flush()
+            print("Accuracy for samples with a supply difference of %.1f: %6.2f%%" % (i/2, avg))
+        print("Overall accuracy on %5d samples: %6.2f%%" % (len(remaining_indices), sum(supply_acc)/sum(supply_count)))
+        #writer.add_graph(sess.graph)
+        #print(sess.run(accuracy, feed_dict={x: xs_test, y: ys_test}))
+
+        
+def filter_close_matchups(replays = [], supply_limit = 0, versions = [STANDARD_VERSION], type='rep'):
     i = 0
     close_matchups = []
     supply_diff = []
-    while i < len(replays):
-        LOG_SINGLE = os.path.join(REPO_DIR, 'log', version, os.path.relpath(replays[i], os.path.join(REPLAYS_PARSED_DIR, version)).replace('.SC2Replay_parsed.gz', '.csv'))
-        match = read_csv(LOG_SINGLE)
-        supply = {}
-        for side in {"A", "B"}:
-            supply[side] = 0
-            team = 'team_' + side
-            for unit in match[team]:
-                if int(unit) == 85:
-                    continue
-                unit_val = return_unit_values_by_id(int(unit))
-                supply[side] += unit_val['supply']
-        if abs(supply["A"]-supply["B"]) < supply_limit:
-            close_matchups.append(replays[i])
-            supply_diff.append(abs(supply["A"]-supply["B"]))
-        
-            #print(replays[i], supply["A"], supply["B"])
-        i += 1
+    for v in versions:
+        while i < len(replays):
+            if type == 'rep':
+                LOG_SINGLE = os.path.join(REPO_DIR, 'log', v, os.path.relpath(replays[i], os.path.join(REPLAYS_PARSED_DIR, v)).replace('.SC2Replay_parsed.gz', '.csv'))
+            if type == 'csv':
+                LOG_SINGLE = os.path.join(REPO_DIR, 'log', v, os.path.relpath(replays[i], os.path.join(REPO_DIR, 'Proc_Data_', v)).replace('\\Layer.csv', '.csv'))
+            match = read_csv(LOG_SINGLE)
+            supply = {}
+            for side in {"A", "B"}:
+                supply[side] = 0
+                team = 'team_' + side
+                for unit in match[team]:
+                    if int(unit) == 85:
+                        continue
+                    unit_val = return_unit_values_by_id(int(unit))
+                    supply[side] += unit_val['supply']
+            if abs(supply["A"]-supply["B"]) < supply_limit:
+                close_matchups.append(replays[i])
+                supply_diff.append(abs(supply["A"]-supply["B"]))
+            
+                #print(replays[i], supply["A"], supply["B"])
+            i += 1
     print("Close match-ups filtered. %d files qualified." % len(close_matchups))
     return close_matchups, supply_diff
     

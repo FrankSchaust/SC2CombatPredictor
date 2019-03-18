@@ -28,3 +28,6 @@ REPLAY_DIR = os.path.join(REPO_DIR, 'replays')
 REPLAYS_PARSED_DIR = os.path.join(REPO_DIR, 'replays_parsed')
 
 STANDARD_VERSION = '1_3a'
+
+REPLAY_VERSION = '1_3d_15sup'
+CONSIDERED_VERSIONS = ['1_3b', '1_3c', '1_3d']
