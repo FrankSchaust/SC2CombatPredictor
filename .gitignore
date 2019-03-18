@@ -24,7 +24,10 @@ replays/
 replays_parsed/
 replays_parsed_v1_1/
 saves/
+Proc_Data_
 screens/
 tensorboard/
 tensorboard_logs/
-tensorboard_sumlogs
+tensorboard_sumlogs/
+bin/__pycache__/
+lib/__pycache__/
