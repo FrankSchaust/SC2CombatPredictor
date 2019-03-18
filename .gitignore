@@ -31,3 +31,5 @@ tensorboard_logs/
 tensorboard_sumlogs/
 bin/__pycache__/
 lib/__pycache__/
+
+*.rar

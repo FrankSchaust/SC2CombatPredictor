@@ -25,7 +25,7 @@ from s2clientprotocol.sc2api_pb2 import Computer, LocalMap, InterfaceOptions, \
 from s2clientprotocol.common_pb2 import Random
 
 
-from lib.config import MAP_PATH, REPLAY_DIR, STANDARD_VERSION
+from lib.config import MAP_PATH, REPLAY_DIR, STANDARD_VERSION, REPLAY_VERSION
 
 
 def main(ununsed_argv):	
@@ -33,7 +33,7 @@ def main(ununsed_argv):
     fail_counter = 0
     while 1:
         try: 
-            game_routine(version='1_3d_10sup')
+            game_routine(version=REPLAY_VERSION)
             time.sleep(5)
             demo_counter += 1
         except RuntimeError:

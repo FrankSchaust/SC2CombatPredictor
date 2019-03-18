@@ -28,12 +28,12 @@ from s2clientprotocol.sc2api_pb2 import InterfaceOptions, RequestStartReplay, \
     SpatialCameraSetup
 
 from lib.config import SCREEN_RESOLUTION, MINIMAP_RESOLUTION, MAP_PATH, \
-    REPLAYS_PARSED_DIR, REPLAY_DIR, REPO_DIR, STANDARD_VERSION
+    REPLAYS_PARSED_DIR, REPLAY_DIR, REPO_DIR, STANDARD_VERSION, REPLAY_VERSION
 from data.simulation_pb2 import Battle, Simulation
 
 
 def main(unused_argv, version=STANDARD_VERSION):
-    version = '1_3d_10sup'
+    version = REPLAY_VERSION
     replay_files = []
     for root, dir, files in os.walk(os.path.join(REPLAY_DIR, version)):
         for file in files:
