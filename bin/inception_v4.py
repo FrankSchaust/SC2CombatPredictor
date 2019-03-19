@@ -45,10 +45,11 @@ def inception_v4(x_):
         shortcut = x_
         for i in range(1):
             x_ = inception_a(x_, "Inception_A"+str(i))
-        # map identity with [1,1,1] kernel to match dimensions
-        shortcut = tf.layers.conv3d(shortcut, filters=x_.get_shape()[4], kernel_size=[1,1,1], strides=(1,1,1), padding='Valid', kernel_regularizer=tf.keras.regularizers.l2(1e-4))
-        # [shortcut matrix, residual matrix]
-        x_ = tf.keras.layers.add([shortcut, x_])
+            # map identity with [1,1,1] kernel to match dimensions
+            shortcut = tf.layers.conv3d(shortcut, filters=x_.get_shape()[4], kernel_size=[1,1,1], strides=(1,1,1), padding='Valid', kernel_regularizer=tf.keras.regularizers.l2(1e-4), activation=tf.nn.relu)
+            # [shortcut matrix, residual matrix]
+            x_ = tf.keras.layers.add([shortcut, x_])
+            x_ = tf.nn.relu(x_)
         print_layer_details(tf.contrib.framework.get_name_scope(), x_.get_shape())
     with tf.name_scope("Reduction_A"):
         x_ = reduction_a(x_, "Reduction_A")
@@ -57,8 +58,9 @@ def inception_v4(x_):
         shortcut = x_
         for i in range(1):
             x_ = inception_b(x_, "Inception_B")
-        shortcut = tf.layers.conv3d(shortcut, filters=x_.get_shape()[4], kernel_size=[1,1,1], strides=(1,1,1), padding='Valid', kernel_regularizer=tf.keras.regularizers.l2(1e-4))
-        x_ = tf.keras.layers.add([shortcut, x_])
+            shortcut = tf.layers.conv3d(shortcut, filters=x_.get_shape()[4], kernel_size=[1,1,1], strides=(1,1,1), padding='Valid', kernel_regularizer=tf.keras.regularizers.l2(1e-4), activation=tf.nn.relu)
+            x_ = tf.keras.layers.add([shortcut, x_])
+            x_ = tf.nn.relu(x_)
         print_layer_details(tf.contrib.framework.get_name_scope(), x_.get_shape())
     with tf.name_scope("Reduction_B"):
         x_ = reduction_b(x_, "Reduction_B")
@@ -67,18 +69,19 @@ def inception_v4(x_):
         shortcut = x_
         for i in range(1):
             x_ = inception_c(x_, "Inception_C")
-        shortcut = tf.layers.conv3d(shortcut, filters=x_.get_shape()[4], kernel_size=[1,1,1], strides=(1,1,1), padding='Valid', kernel_regularizer=tf.keras.regularizers.l2(1e-4))
-        x_ = tf.keras.layers.add([shortcut, x_])
+            shortcut = tf.layers.conv3d(shortcut, filters=x_.get_shape()[4], kernel_size=[1,1,1], strides=(1,1,1), padding='Valid', kernel_regularizer=tf.keras.regularizers.l2(1e-4), activation=tf.nn.relu)
+            x_ = tf.keras.layers.add([shortcut, x_])
+            x_ = tf.nn.relu(x_)
         print_layer_details(tf.contrib.framework.get_name_scope(), x_.get_shape())
-    with tf.name_scope("Reduction_Conv"):
-        x_ = tf.layers.conv3d(x_, filters=32, kernel_size=[1,1,1], strides=(1,1,1), padding='Valid', kernel_regularizer=tf.keras.regularizers.l2(1e-4))
-        print_layer_details(tf.contrib.framework.get_name_scope(), x_.get_shape())
+    # with tf.name_scope("Reduction_Conv"):
+    #     x_ = tf.layers.conv3d(x_, filters=32, kernel_size=[1,1,1], strides=(1,1,1), padding='Valid', kernel_regularizer=tf.keras.regularizers.l2(1e-4))
+    #     print_layer_details(tf.contrib.framework.get_name_scope(), x_.get_shape())
     with tf.name_scope("Final_Layer"):
         width = int(int(x_.get_shape()[2])/2)
-        height = int(int(x_.get_shape()[3]))
+        height = int(int(x_.get_shape()[3])/2)
         x_avg = tf.layers.average_pooling3d(x_, pool_size=[1, width, height], strides=(1,width,height))
         x_flat = tf.layers.flatten(inputs=x_avg)
-        x_dense = tf.layers.dense(inputs=x_flat, units=252)
+        x_dense = tf.layers.dense(inputs=x_flat, units=64, activation=tf.nn.relu)
         print_layer_details(tf.contrib.framework.get_name_scope(), x_dense.get_shape())
         y_ = tf.layers.dense(inputs=x_dense, units=3)
     return y_

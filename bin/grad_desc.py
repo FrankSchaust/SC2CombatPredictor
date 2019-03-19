@@ -41,37 +41,44 @@ from lib.config import SCREEN_RESOLUTION, MINIMAP_RESOLUTION, MAP_PATH, \
     REPLAYS_PARSED_DIR, REPLAY_DIR, REPO_DIR, STANDARD_VERSION
     
 def main():
-    learning_rates = np.arange(0.003, 0.005, 0.0005)
-    training_epochs = 1000
+    learning_rates = [0.05]
+    beta1 = [0.9, 0.7, 0.6, 0.5]
+    beta2 = [0.95, 0.85, 0.75, 0.65]
+    epsilon = 1e-06
+    training_epochs = 50
     
     trackAcc = []
     trackAccs = []
     trackCost = []
     trackCosts = []
     for learning_rate in learning_rates:
-        trackAcc, trackCost = run_grad_desc(learning_rate, training_epochs)
-        trackAccs.append(trackAcc)
-        trackCosts.append(trackCost)
-    create_graphs(trackAccs, trackCosts, learning_rates, training_epochs)
-def run_grad_desc(learning_rate=0.5, training_epochs = 10):
+        for b1 in beta1:
+            for b2 in beta2:
+                print("Run gradient descent with Learning Rate: %-6s --- Beta1: %-4s --- Beta2: %-5s" % (learning_rate, b1, b2))
+                trackAcc, trackCost = run_grad_desc(learning_rate, training_epochs, b1, b2, epsilon)
+                trackAccs.append(trackAcc)
+                trackCosts.append(trackCost)
+    create_graphs(trackAccs, trackCosts, learning_rates, training_epochs, beta1, beta2)
+def run_grad_desc(learning_rate, training_epochs, b1, b2, eps):
     # Graph Input
     x = tf.placeholder(tf.float32, [None, 94])
     y = tf.placeholder(tf.float32, [None, 3])
     
     # initialize weight and bias
-    W = tf.Variable(tf.truncated_normal([94, 3]))
-    
-    # b = tf.Variable(tf.zeros([3]))
+    W_1 = tf.Variable(tf.truncated_normal([94, 94]))
+    W_2 = tf.Variable(tf.truncated_normal([94, 47]))
+    W_3 = tf.Variable(tf.truncated_normal([47, 3]))
     
     # Construct Model
-    logits = tf.matmul(x, W) #+ b
-    
+    x_ = tf.matmul(x, W_1)
+    x_ = tf.matmul(x_, W_2)
+    logits = tf.matmul(x_, W_3)
     pred = tf.nn.softmax(logits)
     # minimize error using cross entropy
     # cross_entropy
     cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(logits=logits, labels=y))
 
-    optimizer = tf.train.AdamOptimizer(learning_rate).minimize(cost)
+    optimizer = tf.contrib.opt.NadamOptimizer(learning_rate, b1, b2, eps).minimize(cost)
     
     correct_prediction = tf.equal(tf.argmax(pred, 1), tf.argmax(y, 1))
     accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
@@ -82,7 +89,7 @@ def run_grad_desc(learning_rate=0.5, training_epochs = 10):
     trackCost = []
     with tf.Session() as s: 
         s.run(init)
-        xs_train, xs_test, ys_train, ys_test = load(version='1_3a')
+        xs_train, xs_test, ys_train, ys_test = load(version=['1_3d'], file_version='multiple')
         # loop to train for specified number of epochs
         for epoch in range(training_epochs):
             _, c = s.run([optimizer, cost], feed_dict={x: xs_train, y: ys_train})
@@ -96,7 +103,7 @@ def run_grad_desc(learning_rate=0.5, training_epochs = 10):
         
         trackAcc = np.array(trackAcc)
         return trackAcc, trackCost
-def create_graphs(trackAcc, trackCost, learning_rate, training_epochs=10):
+def create_graphs(trackAcc, trackCost, learning_rate, training_epochs, b1, b2):
         # create graph
         fig = plt.figure(figsize=plt.figaspect(4.))
         # add plot
@@ -104,18 +111,34 @@ def create_graphs(trackAcc, trackCost, learning_rate, training_epochs=10):
         # create array that corresponds to the number of training steps as x-axis
         # y-axis is the accuracy in %
         a = np.arange(1, training_epochs+1)
+        b = np.arange(1, training_epochs+1)
         ax.set_title('Test Accuracy')
         i = 0
-        for acc in trackAcc:
-            ax.plot(a, acc, '-', label=learning_rate[i])
-            i += 1
-            
         bx = fig.add_subplot(2,1,2)
         bx.set_title('Cost by Epoch')
-        i = 0
-        for cost in trackCost:
-            bx.plot(a, cost, '-', label=learning_rate[i])
-            i += 1
+        m = '' 
+        col = ''
+        sign = ['.', '-', ',', 'o']
+        cols = ['b','g', 'y', 'r'] 
+        for lr in learning_rate:
+            for n in range(len(learning_rate)):
+                if n > 3:
+                    m = '^'
+                    break
+                if lr == learning_rate[n]:
+                    m = sign[n]
+
+            for b_ in b1:
+                for j in range(len(b1)):
+                    if j > 3:
+                        col = 'k'+m
+                        break
+                    if b_ == b1[j]:
+                        col == cols[j]+m
+                for b_2 in b2:
+                    ax.plot(a, trackAcc[i], col, label=i)
+                    bx.plot(b, trackCost[i], col, label=i)
+                    i += 1
         plt.show()
 
 # function to load the csv-data and construct the input array as return
@@ -130,14 +153,10 @@ def load(version = STANDARD_VERSION, file_version='single'):
 
         replay_log_files = build_file_array('logs', version)
         i = 0
-        print('Looking over', len(replay_log_files), 'files')
+        #print('Looking over', len(replay_log_files), 'files')
         while i < len(replay_log_files):
             match_arr.append(read_csv(replay_log_files[i]))
             i = i + 1
-            if i%10000 == 0:
-                print(i, 'csv-files loaded')
-
-        print('match_arr built...')
     if file_version == 'single':
         file_path = os.path.join(REPO_DIR, 'all_csv_from_version_' + version + '.csv')
         match_arr = read_summed_up_csv(file_path, 250)

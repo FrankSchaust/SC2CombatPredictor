@@ -28,7 +28,7 @@ def inception_v4_se(x_):
     #reduction ratio for se_layers
     rr = 4
     with tf.name_scope("Stem"):
-        x_ = tf.layers.max_pooling3d(x_, pool_size=[2,2,2], strides=(1,2,2))
+        x_ = tf.layers.max_pooling3d(x_, pool_size=[1,2,2], strides=(1,2,2))
         x_ = stem(x_, "Stem")
         print_layer_details(tf.contrib.framework.get_name_scope(), x_.get_shape())
     with tf.name_scope("Inception_A"):
@@ -57,7 +57,7 @@ def inception_v4_se(x_):
         print_layer_details(tf.contrib.framework.get_name_scope(), x_.get_shape())
     with tf.name_scope("Final_Layer"):
         width = int(int(x_.get_shape()[2])/2)
-        height = int(int(x_.get_shape()[3]))
+        height = int(int(x_.get_shape()[3])/2)
         x_avg = tf.layers.average_pooling3d(x_, pool_size=[1, width, height], strides=(1,width, height))
         x_flat = tf.layers.flatten(inputs=x_avg)
         x_dense = tf.layers.dense(inputs=x_flat, units=64)

@@ -32,7 +32,7 @@ def main():
     now = datetime.datetime.now()
     lr = 0.01
 
-    tensorboard_dir = os.path.join(REPO_DIR, 'tensorboard_logs', 'Inceptionv4_SE', 'AdamOpt', 'LearningRate_'+str(lr)+"""  '_Repetitions_'+str(a)+'_'+str(b)+"""'_SampleSize_'+str(cap)+'_'+str(now.year)+'-'+str(now.month)+'-'+str(now.day)+'-'+str(now.hour)+'-'+str(now.minute))
+    tensorboard_dir = os.path.join(REPO_DIR, 'tensorboard_logs', 'Inception_SE', 'AdamOpt', 'LearningRate_'+str(lr)+"""  '_Repetitions_'+str(a)+'_'+str(b)+"""'_SampleSize_'+str(cap)+'_'+str(now.year)+'-'+str(now.month)+'-'+str(now.day)+'-'+str(now.hour)+'-'+str(now.minute))
 
     file = build_file_array(type='csv', version=versions)
     file, supp_diff = filter_close_matchups(file, 10, versions, 'csv')
@@ -57,9 +57,10 @@ def main():
     test_init_op = iter.make_initializer(test_dataset)
         
     features, labels = iter.get_next()
-
     y_ = inception_v4_se(features)
+    # y_ = resnet(features)
     # y_ = all_conv(features)
+    # y_ = inception_v4(features)
     y = labels
     softmax = tf.nn.softmax(y_)
 
@@ -156,13 +157,13 @@ def resnet(x_):
     
     block_fn = get_block(block_fn)
     with tf.name_scope("First_Layer"):
-        conv1 = conv_bn_relu(x_, filters=32, kernel_size=[1, 7, 7], strides=(1,2,2), kernel_regularizer=tf.keras.regularizers.l2(reg_factor), padding='VALID')
+        conv1 = conv_bn_relu(x_, filters=64, kernel_size=[1, 7, 7], strides=(1,2,2), kernel_regularizer=tf.keras.regularizers.l2(reg_factor), padding='VALID')
         param = print_layer_details(tf.contrib.framework.get_name_scope(), conv1.get_shape())
     # pool1 = tf.layers.max_pooling3d(inputs=conv1, pool_size=[3,3,3], strides=(2,2,2), padding='SAME')
     
     block = conv1
     #print(block.get_shape())
-    filters = 32
+    filters = 64
     for i, r in enumerate(repetitions):
         with tf.name_scope("Residual_Block_"+str(i+1)):
             block = residual_block_3d(block, block_fn, filters=filters, repetitions=r, kernel_regularizer=tf.keras.regularizers.l2(reg_factor), is_first_layer=(i == 0), scope="Residual_Block_"+str(i+1))
@@ -170,7 +171,7 @@ def resnet(x_):
         
     block_output = batch_norm(block)
     width = int(int(block.get_shape()[2])/2)
-    height = int(int(block.get_shape()[3]))
+    height = int(int(block.get_shape()[3])/2)
     with tf.name_scope("Avg_Pooling"):
         pool2 = tf.layers.average_pooling3d(inputs=block_output, 
                                             pool_size=[1,
@@ -181,7 +182,7 @@ def resnet(x_):
     flatten1 = tf.layers.flatten(pool2)
     x_ = flatten1
     with tf.name_scope("Dense_Layer"):
-        x_ = tf.layers.dense(inputs=x_, units=128, kernel_regularizer=tf.keras.regularizers.l2(reg_factor), activation=tf.nn.relu)
+        x_ = tf.layers.dense(inputs=x_, units=64, kernel_regularizer=tf.keras.regularizers.l2(reg_factor), activation=tf.nn.relu)
         param = print_layer_details(tf.contrib.framework.get_name_scope(), x_.get_shape())
         
     y_ = tf.layers.dense(inputs=x_, units=num_classes, kernel_regularizer=tf.keras.regularizers.l2(reg_factor), activation=tf.nn.relu)

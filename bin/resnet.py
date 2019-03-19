@@ -26,7 +26,7 @@ from keras.layers import Conv2D, Dropout, MaxPooling2D, Conv3D, MaxPooling3D
 from absl import app
 
 from bin.util import *
-from lib.config import REPLAYS_PARSED_DIR, REPO_DIR
+from lib.config import REPLAYS_PARSED_DIR, REPO_DIR, STANDARD_VERSION
 from data import simulation_pb2
 from bin.load_batch import load_batch
 from bin.modules import *
@@ -35,23 +35,23 @@ from bin.modules import *
 
 def main():
     os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3' 
+    versions = ['1_3d_10sup']
     i = 0
-    learning_rates = [0.02, 0.01, 0.005, 0.001, 0.0005, 0.0001, 0.00005]
+    learning_rates = [0.001, 0.0005]
     ### constant declarations, the different architectures will be iterated by chosing different learning rates and ratios of convolutions to fully connected layers
-    epochs = 20
-    batch_size = 10
-    capped_batch = 50
+    epochs = 50
+    batch_size = 100
+    capped_batch = 5000
     num_classes = 3
     depth = 13
-    r=1
     
 	# Loading example files
     replay_parsed_files = []
-    replay_parsed_files = build_file_array(version=['1_3b', '1_3c', '1_3d'])
+    replay_parsed_files = build_file_array(version=versions)
     
     for lr in learning_rates:        
             # build the folder structure for tensorboard logs
-            base_dir = os.path.join(REPO_DIR, 'tensorboard_logs', 'ResNet', 'LearningRate_'+str(lr)+'_Repetitions_5_5_SampleSize_'+str(capped_batch))
+            base_dir = os.path.join(REPO_DIR, 'tensorboard_logs', 'ResNet', 'AdamOpt', 'LearningRate_'+str(lr)+'_Repetitions_5_3_SampleSize_'+str(capped_batch))
             os.makedirs(base_dir, exist_ok=True)
             sub_dirs = get_immediate_subdirectories(base_dir)
             last_run_fin = get_number_of_last_run(base_dir, sub_dirs)
@@ -61,45 +61,52 @@ def main():
                 tensorboard_dir = os.path.join(base_dir, 'Run '+str(last_run_fin))
                 os.makedirs(tensorboard_dir, exist_ok=True)
                 print('Model and Logs saved at %s' % (tensorboard_dir))
-                run_cnn(replays=replay_parsed_files, lr=lr, epochs=epochs, capped_batch=capped_batch, tensorboard_dir=tensorboard_dir)
+                run_cnns(replays=replay_parsed_files, lr=lr, epochs=epochs, batch_size=batch_size, capped_batch=capped_batch, tensorboard_dir=tensorboard_dir, versions=versions)
                 
-def run_cnn(replays=[], lr=0.5, epochs=15, batch_size=10, capped_batch=100, depth=13, num_classes=3, tensorboard_dir=""):
+def run_cnns(replays=[], lr=0.5, epochs=15, batch_size=10, capped_batch=100, depth=13, num_classes=3, tensorboard_dir="", versions=STANDARD_VERSION):
     acc = 0
     t_acc = 0
     x = tf.placeholder(tf.float32, shape=[None, depth, 84, 84, 1])
     y = tf.placeholder(tf.float32, shape=[None, num_classes])
     reg_factor = 1e-4
-    repetitions = [5,2]
+    repetitions = [5,3]
     block_fn = basic_block
     
     block_fn = get_block(block_fn)
-    
-    conv1 = conv_bn_relu(x, filters=64, kernel_size=[7, 7, 7], strides=(2,2,2), kernel_regularizer=tf.keras.regularizers.l2(reg_factor), padding='SAME')
-    # print(conv1.get_shape())
+    x_ = remove_zero_layers(x)
+    with tf.name_scope("First_Layer"):
+        conv1 = conv_bn_relu(x_, filters=16, kernel_size=[1, 7, 7], strides=(1,2,2), kernel_regularizer=tf.keras.regularizers.l2(reg_factor), padding='VALID')
+        param = print_layer_details(tf.contrib.framework.get_name_scope(), conv1.get_shape())
     # pool1 = tf.layers.max_pooling3d(inputs=conv1, pool_size=[3,3,3], strides=(2,2,2), padding='SAME')
     
     block = conv1
     #print(block.get_shape())
-    filters = 64
+    filters = 16
     for i, r in enumerate(repetitions):
         with tf.name_scope("Residual_Block_"+str(i+1)):
             block = residual_block_3d(block, block_fn, filters=filters, repetitions=r, kernel_regularizer=tf.keras.regularizers.l2(reg_factor), is_first_layer=(i == 0), scope="Residual_Block_"+str(i+1))
             filters *= 2
         
     block_output = batch_norm(block)
-
+    width = int(int(block.get_shape()[2])/2)
+    height = int(int(block.get_shape()[3])/2)
     pool2 = tf.layers.average_pooling3d(inputs=block_output, 
-                                        pool_size=[block.get_shape()[1],
-                                                   block.get_shape()[2],
-                                                   block.get_shape()[3]],
-                                        strides=(1,1,1))
+                                        pool_size=[1,
+                                                   width,
+                                                   height],
+                                        strides=(1,width,height))
     flatten1 = tf.layers.flatten(pool2)
-    
-    y_ = tf.layers.dense(inputs=flatten1, units=num_classes, kernel_regularizer=tf.keras.regularizers.l2(reg_factor))
+    x_ = flatten1
+    for i in range(4):
+        x_ = tf.layers.dense(inputs=x_, units=(i+1)*5, kernel_regularizer=tf.keras.regularizers.l2(reg_factor))
+        
+    y_ = tf.layers.dense(inputs=x_, units=num_classes, kernel_regularizer=tf.keras.regularizers.l2(reg_factor))
     
     softmax = tf.nn.softmax(y_)
-    
 
+    #get trainable params
+    para = get_params(tf.trainable_variables())
+    print(para)
     cross_entropy = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(logits=y_, labels=y))
 
     # add an optimiser
@@ -113,91 +120,6 @@ def run_cnn(replays=[], lr=0.5, epochs=15, batch_size=10, capped_batch=100, dept
     init_op = tf.global_variables_initializer()
     # setup the save and restore functionality for variables 
     saver = tf.train.Saver()
-    with tf.Session() as sess:
-        summary_writer = tf.summary.FileWriter(tensorboard_dir, sess.graph)
-        # initialise the variables
-        sess.run(init_op)
-        # setup recording variables
-        # add a summary to store the accuracy
-        cap = capped_batch
-        close_matchups, supplies = filter_close_matchups(replays, supply_limit=5)
-
-        train_file_indices, test_file_indices = generate_random_indices(file_count=len(close_matchups), cap=cap, split_ratio=0.9) 
-        print(train_file_indices, test_file_indices)
-        
-        remaining_indices, remaining_supplies = get_remaining_indices(file_count=len(close_matchups), ind1=train_file_indices, ind2=test_file_indices, supply = supplies)
-        for epoch in range(epochs):
-            avg_cost = 0
-            acc = 0
-            t_acc = 0
-            ys_test = []
-            xs_test = []
-            li = 0
-            lis = 0
-            last_batch_acc = 0
-            batches = int(len(train_file_indices)/batch_size)
-            for i in range(batches):
-                batch_x, batch_y, li = load_batch(replays, indices=train_file_indices, capped_batch=batch_size, run=i, lastindex=li, train=True)
-                _, c = sess.run([optimiser, cross_entropy], feed_dict={x: batch_x, y: batch_y})
-                train_acc = sess.run(accuracy, feed_dict={x: batch_x, y: batch_y})
-                sys.stdout.write("\r[%-20s] %6.2f%% --- Batch %2d from %d --- Latest Acc: %6.2f%%" % ('='*int(((i+1)/batches)*20), ((i+1)/batches)*100, i+1, batches, train_acc*100))
-                sys.stdout.flush()
-                avg_cost += c / batches
-                acc += train_acc / batches
-            if len(test_file_indices) < 30: 
-                batch_x, batch_y, lis = load_batch(replays, indices=test_file_indices, capped_batch=len(test_file_indices), run=1, lastindex=lis,)
-                # _, c = sess.run([optimiser, cross_entropy], feed_dict={x: batch_x, y: batch_y})
-                test_acc = sess.run(accuracy, feed_dict={x: batch_x, y: batch_y})
-                #sys.stdout.write("\r[%-20s] %.2f%% --- Batch %d from %d" % ('='*int(((i+1)/total_batch)*20), ((i+1)/total_batch)*100, i+1, total_batch))
-                #sys.stdout.flush()
-                #avg_cost += c / total_batch
-                #xs_test.append(batch_x)
-                #ys_test.append(batch_y)
-                t_acc += test_acc
-                print(" --- Result of Epoch:", (epoch + 1), "Train accuracy: {:.2f}".format(acc*100), "% cost: {:.3f}".format(avg_cost), " test accuracy on {:d}".format(len(test_file_indices)), "samples: {:.2f}".format(t_acc*100), "%")
-            else:
-                batches = int(len(test_file_indices))/batch_size
-                for i in range(batches):
-                    batch_x, batch_y, lis = load_batch(replays, indices=test_file_indices, capped_batch=batch_size, run=i, lastindex=lis,)
-                    # _, c = sess.run([optimiser, cross_entropy], feed_dict={x: batch_x, y: batch_y})
-                    test_acc = sess.run(accuracy, feed_dict={x: batch_x, y: batch_y})
-                    #sys.stdout.write("\r[%-20s] %.2f%% --- Batch %d from %d" % ('='*int(((i+1)/total_batch)*20), ((i+1)/total_batch)*100, i+1, total_batch))
-                    #sys.stdout.flush()
-                    #avg_cost += c / total_batch
-                    #xs_test.append(batch_x)
-                    #ys_test.append(batch_y)
-                    t_acc += test_acc / batches
-                print(" --- Result of Epoch:", (epoch + 1), "Train accuracy: {:.2f}".format(acc*100), "% cost: {:.3f}".format(avg_cost), " test accuracy on {:d}".format(batches*batch_size), "samples: {:.2f}".format(t_acc*100), "%")
-            train_summary = tf.Summary(value=[tf.Summary.Value(tag='train_loss', simple_value=avg_cost),
-                                              tf.Summary.Value(tag='train_accuracy', simple_value=acc),
-                                              tf.Summary.Value(tag='test_accuracy', simple_value=t_acc)])
-
-
-
-            summary_writer.add_summary(summary=train_summary, global_step=epoch)
-            summary_writer.flush()
-
-
-        print("\nTraining complete!")
-        save_path = saver.save(sess, os.path.join(tensorboard_dir, "model.ckpt"))
-        # Declare variables for the summary
-        li = 0
-        supply_acc = np.zeros(10)
-        supply_count = np.zeros(10)
-        for i in range(len(remaining_indices)):
-            xs, ys, li = load_batch(replays, indices=remaining_indices, capped_batch=1, run=i, lastindex=li)
-            acc = sess.run(accuracy, feed_dict={x: xs, y: ys})
-            #print(remaining_supplies[i])
-            supply_acc[int(remaining_supplies[i]*2)] += acc
-            supply_count[int(remaining_supplies[i]*2)] += 1
-            if i%100==0 and i>0:
-                print("%4d samples evaluated." % (i))
-        for i in range(10):
-            test_summary = tf.Summary(value=[tf.Summary.Value(tag='accuracy by supplies', simple_value=(supply_acc[i]/supply_count[i]))])
-            summary_writer.add_summary(summary=test_summary, global_step=i)
-            print("Accuracy for samples with a supply difference of %.1f: %6.2f%%" % (i/2, (supply_acc[i]/supply_count[i])))
-        print("Overall accuracy on %5d samples: %6.2f%%" % (len(remaining_indices), sum(supply_acc)/sum(supply_count)))
-        #writer.add_graph(sess.graph)
-        #print(sess.run(accuracy, feed_dict={x: xs_test, y: ys_test}))
+    run_cnn(replays, lr, epochs, batch_size, capped_batch, depth, num_classes, optimiser, cross_entropy, accuracy, init_op, saver, tensorboard_dir, x, y, versions, 10)
 if __name__ == "__main__":
     main()

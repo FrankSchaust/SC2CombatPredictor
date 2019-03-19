@@ -46,14 +46,11 @@ def main():
     # file_version contains the information which version of the samples should be loaded(e.g. the single .csv-File containing all combats, or the .csv-files that contain one encounter each)
     # version declares the version of replay samples to use
     skip_remis = False
-    file_version = 'single'
-    version = '1_3a'
-    
+    file_version = 'multiple'
+    versions = ['1_3d_10sup']
     if file_version == 'multiple':
         replay_log_files = []
-        
-
-        replay_log_files = build_file_array('logs', version)
+        replay_log_files = build_file_array('logs', versions)
         i = 0
         print('Looking over', len(replay_log_files), 'files')
         while i < len(replay_log_files):
@@ -122,15 +119,18 @@ def main():
                 detection[t], invisibility[t] = get_detection_and_invisibility(match['team_'+t])
                     
         except TypeError:
+            print('Zyp')
             print(match, replay_log_files[i])
             continue
         except ZeroDivisionError:
+            print("ZDE")
             print(match, replay_log_files[i])
             continue
             
         ### merge powervalues by ratio of enemy unit types
         for t in team:
             unit_types_ges[t] = unit_types[t]['air'] + unit_types[t]['ground']
+        for t in team: 
             if t == 'A':
                 ant = 'B'
             else: 
@@ -138,6 +138,7 @@ def main():
             try: 
                 powervalue_summed[t]= (unit_types[ant]['air']/unit_types_ges[ant]) * powervalue[t]['a'] + (unit_types[ant]['ground']/unit_types_ges[ant]) * powervalue[t]['g']
             except ZeroDivisionError:
+                print('abc')
                 print(match, replay_log_files[i])
                 continue
         

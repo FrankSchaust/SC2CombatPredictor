@@ -81,7 +81,7 @@ def all_conv(x_):
     ### Conv1 = 192 x 3 x 3 x 192 + 192 = 331968
     ### Batchnorm = Filter * 2 = 384
     with tf.name_scope("Layer_E"):
-        x_ = tf.layers.conv3d(inputs=x_, filters=192, kernel_size=[1, 3, 3], strides=(1,1,1), activation=tf.nn.relu)
+        x_ = tf.layers.conv3d(inputs=x_, filters=192, kernel_size=[1, 3, 3], strides=(1,1,1), padding='same', activation=tf.nn.relu)
         print_layer_details(tf.contrib.framework.get_name_scope(), x_.get_shape())
         x_ = tf.layers.batch_normalization(inputs=x_, training=True)
     # # # Layer F 
@@ -110,7 +110,7 @@ def all_conv(x_):
     ### FCL = 160 * 3 + 3 = 483
     with tf.name_scope("Final_Layer"):
         width = int(int(x_.get_shape()[2])/2)
-        height = int(int(x_.get_shape()[3]))
+        height = int(int(x_.get_shape()[3])/2)
         x_avg = tf.layers.average_pooling3d(x_, pool_size=[1, width, height], strides=(1,width, height))
         x_ = tf.layers.flatten(inputs=x_avg)
         y_ = tf.layers.dense(inputs=x_, units=num_classes)

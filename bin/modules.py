@@ -210,54 +210,27 @@ def bn_relu_conv(input, filters, kernel_size, strides, padding, kernel_regulariz
     norm = batch_norm(input)
     return tf.layers.conv3d(inputs=norm, filters=filters, kernel_size=kernel_size, strides=strides, padding=padding, kernel_regularizer=kernel_regularizer)
 ### define the shortcut function
-def shortcut3d(input, residual):
-    stride_dim1 = input.get_shape()[1] // residual.get_shape()[1]
-    stride_dim2 = input.get_shape()[2] // residual.get_shape()[2]
-    stride_dim3 = input.get_shape()[3] // residual.get_shape()[3]
+def shortcut3d(input, residual, strides):
     equal_channels = residual.get_shape()[4] == input.get_shape()[4]
     shortcut = input
-    if stride_dim1 > 1 or stride_dim2 > 1 or stride_dim3 > 1 or not equal_channels or residual.get_shape()[2] < input.get_shape()[2]:
+    if strides[1] > 1:
         shortcut = tf.layers.conv3d(
             inputs=input,
             filters=residual.get_shape()[4],
-            kernel_size=[1, 1, 1],
-            strides=(stride_dim1, stride_dim2, stride_dim3),
+            kernel_size=[1, 3, 3],
+            strides=strides,
             padding='VALID',
             kernel_regularizer=tf.keras.regularizers.l2(1e-4))
-        print(shortcut.get_shape())
-        shortcut = tf.layers.conv3d(
-            inputs=shortcut,
+    if not equal_channels and strides[1] == 1:
+            shortcut = tf.layers.conv3d(
+            inputs=input,
             filters=residual.get_shape()[4],
-            kernel_size=[1, 3, 3],
-            strides=(1, 1, 1),
+            kernel_size=[1, 1, 1],
+            strides=strides,
             padding='VALID',
             kernel_regularizer=tf.keras.regularizers.l2(1e-4))
     return tf.keras.layers.add([shortcut, residual])
-    
-def shortcut3d_bb(input, residual):
-    stride_dim1 = input.get_shape()[1] // residual.get_shape()[1]
-    stride_dim2 = input.get_shape()[2] // residual.get_shape()[2]
-    stride_dim3 = input.get_shape()[3] // residual.get_shape()[3]
-    equal_channels = residual.get_shape()[4] == input.get_shape()[4]
-    shortcut = input
-    if stride_dim1 > 1 or stride_dim2 > 1 or stride_dim3 > 1 or not equal_channels or residual.get_shape()[2] < input.get_shape()[2]:
-        shortcut = tf.layers.conv3d(
-            inputs=input,
-            filters=residual.get_shape()[4],
-            kernel_size=[1, 1, 1],
-            strides=(stride_dim1, stride_dim2, stride_dim3),
-            padding='VALID',
-            kernel_regularizer=tf.keras.regularizers.l2(1e-4))
-        # print(shortcut.get_shape())
-        shortcut = tf.layers.conv3d(
-            inputs=shortcut,
-            filters=residual.get_shape()[4],
-            kernel_size=[1, 2, 2],
-            strides=(1, 1, 1),
-            padding='VALID',
-            kernel_regularizer=tf.keras.regularizers.l2(1e-4))
-    return tf.keras.layers.add([shortcut, residual])  
-    
+
 ### define a 3-dimensional residual block
 def residual_block_3d(input, block_function, filters, repetitions, kernel_regularizer, is_first_layer=False, scope=''):
     for i in range(repetitions):
@@ -265,30 +238,24 @@ def residual_block_3d(input, block_function, filters, repetitions, kernel_regula
             strides = (1, 1, 1)
             if i == 0 and not is_first_layer:
                 strides=(1, 2, 2)
-            input = block_function(input, filters=filters, strides=strides, kernel_regularizer=kernel_regularizer, is_first_block_of_first_layer=(is_first_layer and i == 0))   
+            input = block_function(input, filters=filters, strides=strides, kernel_regularizer=kernel_regularizer)   
             param = print_layer_details(scope + '_' + str(i), input.get_shape())
     return input
     
 ### define basic block 
-def basic_block(input, filters, strides=(1,1,1), kernel_regularizer=tf.keras.regularizers.l2(1e-4), is_first_block_of_first_layer=False):
-    if is_first_block_of_first_layer:
-        conv1 = tf.layers.conv3d(inputs=input, filters=filters, kernel_size=[1,3,3], strides=strides, padding='SAME', kernel_regularizer=kernel_regularizer)
+def basic_block(input, filters, strides=(1,1,1), kernel_regularizer=tf.keras.regularizers.l2(1e-4)):
+    if strides[1] > 1:
+        conv1 = tf.layers.conv3d(inputs=input, filters=filters, kernel_size=[1,3,3], strides=strides, padding='VALID', kernel_regularizer=kernel_regularizer)
     else:
-        conv1 = tf.layers.conv3d(inputs=input, filters=filters, kernel_size=[1,3,3], strides=strides, kernel_regularizer=kernel_regularizer)
+        conv1 = tf.layers.conv3d(inputs=input, filters=filters, kernel_size=[1,3,3], strides=strides, padding='SAME', kernel_regularizer=kernel_regularizer)
         
     residual = bn_relu_conv(conv1, filters=filters, kernel_size=[1,3,3], strides=(1,1,1), padding='SAME', kernel_regularizer=kernel_regularizer)
-    if not is_first_block_of_first_layer and (strides[1] > 1 or strides[2] > 1):
-        return shortcut3d_bb(input, residual)
-    else:
-        return shortcut3d(input, residual)
+    return shortcut3d(input, residual, strides)
 
  
 ### define a bottleneck block
-def bottleneck(input, filters, strides=(1,1,1), kernel_regularizer=tf.keras.regularizers.l2(1e-4), is_first_block_of_first_layer=False):
-        if is_first_block_of_first_layer:
-            conv_1_1 = tf.layers.conv3d(inputs=input, filters=filters, kernel_size=[1,1,1], strides=strides, padding='SAME', kernel_regularizer=kernel_regularizer)
-        else:
-            conv_1_1 = tf.layers.conv3d(inputs=input, filters=filters, kernel_size=[1,1,1], strides=strides, kernel_regularizer=kernel_regularizer)
+def bottleneck(input, filters, strides=(1,1,1), kernel_regularizer=tf.keras.regularizers.l2(1e-4)):
+        conv_1_1 = tf.layers.conv3d(inputs=input, filters=filters, kernel_size=[1,1,1], strides=strides, padding='SAME', kernel_regularizer=kernel_regularizer)
         
         conv_3_3 = tf.layers.conv3d(inputs=conv_1_1, filters=filters, kernel_size=[1,3,3], strides=(1,1,1), kernel_regularizer=kernel_regularizer)
         
