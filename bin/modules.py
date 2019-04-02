@@ -229,7 +229,7 @@ def shortcut3d(input, residual, strides):
             strides=strides,
             padding='VALID',
             kernel_regularizer=tf.keras.regularizers.l2(1e-4))
-    return tf.keras.layers.add([shortcut, residual])
+    return tf.nn.relu(tf.keras.layers.add([shortcut, residual]))
 
 ### define a 3-dimensional residual block
 def residual_block_3d(input, block_function, filters, repetitions, kernel_regularizer, is_first_layer=False, scope=''):
