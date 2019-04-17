@@ -27,7 +27,7 @@ def Avg_Pooling(x, pool_size=[1,3,3], stride=(1,1,1), padding='SAME'):
     return tf.layers.average_pooling3d(inputs=x, pool_size=pool_size, strides=stride, padding=padding)
 def Conv_Layer(input, filter, kernel, stride=(1,1,1), padding='SAME', layer_name="conv"):
     with tf.name_scope(layer_name):
-        return tf.layers.conv3d(inputs=input, use_bias=True, filters=filter, kernel_size=kernel, strides=stride, padding=padding, activation=tf.nn.relu)
+        return tf.layers.conv3d(inputs=input, use_bias=True, filters=filter, kernel_size=kernel, strides=stride, padding=padding, activation=tf.nn.relu, kernel_regularizer=tf.keras.regularizers.l2(1e-4))
 def Concat(x): 
     return tf.concat(x, 4)
 

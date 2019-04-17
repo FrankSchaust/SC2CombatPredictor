@@ -236,15 +236,16 @@ def run_cnn(replays, learning_rate, epochs, batch_size, capped_batch, depth, num
 
         
 def filter_close_matchups(replays = [], supply_limit = 0, versions = [STANDARD_VERSION], type='rep'):
-    i = 0
+
     close_matchups = []
     supply_diff = []
-    for v in versions:
-        while i < len(replays):
-            if type == 'rep':
-                LOG_SINGLE = os.path.join(REPO_DIR, 'log', v, os.path.relpath(replays[i], os.path.join(REPLAYS_PARSED_DIR, v)).replace('.SC2Replay_parsed.gz', '.csv'))
-            if type == 'csv':
-                LOG_SINGLE = os.path.join(REPO_DIR, 'log', v, os.path.relpath(replays[i], os.path.join(REPO_DIR, 'Proc_Data_', v)).replace('\\Layer.csv', '.csv'))
+    #for v in versions:
+    v = '1_3d'
+    for replay in replays:
+        if type == 'rep':
+            LOG_SINGLE = os.path.join(REPO_DIR, 'log', v, os.path.relpath(replay, os.path.join(REPLAYS_PARSED_DIR, v)).replace('.SC2Replay_parsed.gz', '.csv'))
+        if type == 'csv':
+            LOG_SINGLE = os.path.join(REPO_DIR, 'log', v, os.path.relpath(replay, os.path.join(REPO_DIR, 'Proc_Data_', v)).replace('\\Layer.csv', '.csv'))
             match = read_csv(LOG_SINGLE)
             supply = {}
             for side in {"A", "B"}:
@@ -255,12 +256,14 @@ def filter_close_matchups(replays = [], supply_limit = 0, versions = [STANDARD_V
                         continue
                     unit_val = return_unit_values_by_id(int(unit))
                     supply[side] += unit_val['supply']
-            if abs(supply["A"]-supply["B"]) < supply_limit:
-                close_matchups.append(replays[i])
+            if abs(supply["A"]-supply["B"]) < supply_limit and supply["A"] > 0 and supply["B"] > 0:
+                close_matchups.append(replay)
                 supply_diff.append(abs(supply["A"]-supply["B"]))
             
-                #print(replays[i], supply["A"], supply["B"])
-            i += 1
+                #print(replay, supply["A"], supply["B"])
+            
+
+            
     print("Close match-ups filtered. %d files qualified." % len(close_matchups))
     return close_matchups, supply_diff
     

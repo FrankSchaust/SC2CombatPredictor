@@ -21,9 +21,9 @@ from lib.config import SCREEN_RESOLUTION, MINIMAP_RESOLUTION, MAP_PATH, \
 
 def main():
     os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3' 
-    versions = ['1_3d_10sup']  
-    batch_size = 100
-    cap = 30000
+    versions = ['1_3d_10sup', '1_3d', '1_3d_15sup']  
+    batch_size = 80
+    cap = 40000
     epochs = 50
     a = 5
     b = 3
@@ -33,7 +33,7 @@ def main():
     now = datetime.datetime.now()
     lr = 0.001
 
-    tensorboard_dir = os.path.join(REPO_DIR, 'tensorboard_logs', 'ResNet', 'AdamOpt', 'LearningRate_'+str(lr)+"""  '_Repetitions_'+str(a)+'_'+str(b)+"""'_SampleSize_'+str(cap)+'_'+str(now.year)+'-'+str(now.month)+'-'+str(now.day)+'-'+str(now.hour)+'-'+str(now.minute))
+    tensorboard_dir = os.path.join(REPO_DIR, 'tensorboard_logs', 'Inception_v4', 'LearningRate_'+str(lr)+'_SampleSize_'+str(cap)+'_'+str(now.year)+'-'+str(now.month)+'-'+str(now.day)+'-'+str(now.hour)+'-'+str(now.minute))
 
     file = build_file_array(type='csv', version=versions)
     file, supp_diff = filter_close_matchups(file, 10, versions, 'csv')
@@ -43,8 +43,8 @@ def main():
     test_dataset = tf.data.TextLineDataset(file[split:cap], compression_type='GZIP')
     train_dataset = train_dataset.batch(13*84*84+3)
     test_dataset = test_dataset.batch(13*84*84+3)
-    train_dataset = train_dataset.map(parse_func, num_parallel_calls=8)
-    test_dataset = test_dataset.map(parse_func, num_parallel_calls=8)
+    train_dataset = train_dataset.map(parse_func, num_parallel_calls=16)
+    test_dataset = test_dataset.map(parse_func, num_parallel_calls=16)
     
     train_dataset = train_dataset.batch(batch_size)
     test_dataset = test_dataset.batch(batch_size)
@@ -60,9 +60,9 @@ def main():
     features, labels = iter.get_next()
     # y_ = testitest(features)
     # y_ = inception_v4_se(features)
-    y_ = resnet(features)
+    # y_ = resnet(features)
     # y_ = all_conv(features)
-    # y_ = inception_v4(features)
+    y_ = inception_v4(features)
     y = labels
     softmax = tf.nn.softmax(y_)
 
@@ -81,17 +81,29 @@ def main():
     # setup the initialisation operator
     init_op = tf.global_variables_initializer()
     # setup the save and restore functionality for variables 
-    saver = tf.train.Saver()
+    saver = tf.train.Saver(max_to_keep=50)
 
-
+    
     with tf.Session() as sess:
+        
+        last_stop = None
+        save_path_ = os.path.join(tensorboard_dir)
+        if not last_stop == None:
+            saver = tf.train.import_meta_graph(os.path.join(save_path_, 'model_at_epoch-'+str(last_stop)+'.meta'))
+            if tf.train.checkpoint_exists(os.path.join(save_path_, 'model_at_epoch-'+str(last_stop))):
+                saver.restore(sess, os.path.join(save_path_, 'model_at_epoch-'+str(last_stop)))
+            else:
+                saver.restore(sess, tf.train.latest_checkpoint(save_path_))
+            epoch_range = np.arange(last_stop, epochs)
+            tensorboard_dir = save_path_
+        else:
+            epoch_range = np.arange(0, epochs)
+            sess.run(init_op)
         summary_writer = tf.summary.FileWriter(tensorboard_dir, sess.graph)
-
-        sess.run(init_op)
         labels_by_epoch = []
         pred_by_epoch = []
         timestamp = datetime.datetime.now()        
-        for i in range(epochs):
+        for i in epoch_range:
             #get timestamp
             epoch_timestamp = datetime.datetime.now()        
             sess.run(train_init_op)
@@ -142,6 +154,7 @@ def main():
 
             summary_writer.add_summary(summary=train_summary, global_step=i)
             summary_writer.flush()
+            save_path = saver.save(sess, os.path.join(tensorboard_dir, "model_at_epoch"), global_step=i+1)
         # print(labels_by_epoch)
         df = pd.DataFrame(labels_by_epoch)
         os.makedirs(tensorboard_dir, exist_ok=True)
@@ -150,7 +163,7 @@ def main():
         df.to_csv(os.path.join(tensorboard_dir, 'preds.csv'))
         train_time = datetime.datetime.now() - timestamp
         print("\nTraining complete after {}!".format(train_time))
-        save_path = saver.save(sess, os.path.join(tensorboard_dir, "model.ckpt"))
+            
 
 ### Important Metrics to consider
 # Accuracy Train / Test
