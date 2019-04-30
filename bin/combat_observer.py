@@ -46,8 +46,8 @@ def main(unused_argv, version=STANDARD_VERSION):
 
 
                 simulation = Simulation()
-                REPLAYS_SINGLE = os.path.join(REPLAYS_PARSED_DIR, version, os.path.relpath(replay_file, os.path.join(REPLAY_DIR, version)).replace('.SC2Replay', ''))
-                LOG_SINGLE = os.path.join(REPO_DIR, 'log', version, os.path.relpath(replay_file, os.path.join(REPLAY_DIR, version)).replace('.SC2Replay', ''))
+                REPLAYS_SINGLE = os.path.join(REPLAYS_PARSED_DIR, version+'_2', os.path.relpath(replay_file, os.path.join(REPLAY_DIR, version)).replace('.SC2Replay', ''))
+                LOG_SINGLE = os.path.join(REPO_DIR, 'log', version+'_2', os.path.relpath(replay_file, os.path.join(REPLAY_DIR, version)).replace('.SC2Replay', ''))
                 SCREENS_SINGLE = os.path.join(REPO_DIR, 'screens', version, os.path.relpath(replay_file, os.path.join(REPLAY_DIR, version)).replace('.SC2Replay', ''))
                 os.makedirs(REPLAYS_SINGLE, exist_ok=True)
                 os.makedirs(LOG_SINGLE, exist_ok=True)
@@ -88,7 +88,7 @@ def main(unused_argv, version=STANDARD_VERSION):
                     if time > 6000:
                         os.remove(replay_file)
                         print('removed %s because game time exceeded 1 hour (actual replay duration was %.2f)'  % (replay_file, time))
-                        break;
+                        break
                     else: 
                         print('File okay, Duration is %.2f' % (time))
                     round_num = 0
@@ -96,7 +96,6 @@ def main(unused_argv, version=STANDARD_VERSION):
                     last_num_units, curr_num_units = -1, -1
                     last_num_wins_minerals, curr_num_wins_minerals = -1, -1
                     last_num_wins_vespene, curr_num_wins_vespene = -1, -1
-                    error_flag = False
                     units = []
                     obs = controller.observe()
                     while not obs.player_result:
@@ -175,7 +174,7 @@ def main(unused_argv, version=STANDARD_VERSION):
                                 string = '_' + str(round_num) + '.SC2Replay_parsed.gz'
                                 replay_parsed_file = os.path.join(
                                 REPLAYS_SINGLE,
-                                os.path.relpath(replay_file, os.path.join(REPLAY_DIR, version)).replace(
+                                os.path.relpath(replay_file, os.path.join(REPLAY_DIR, version+'_2')).replace(
                                 '.SC2Replay', string))
                                 print('Round %s parsed and saved as: %s' % (round_num, replay_parsed_file), file=sys.stderr)
                                 os.makedirs(REPLAYS_SINGLE, exist_ok=True)
@@ -185,7 +184,7 @@ def main(unused_argv, version=STANDARD_VERSION):
                                 units = np.array(units)
                                 df = pd.DataFrame(units)
                                 
-                                df.to_csv(os.path.join(LOG_SINGLE, os.path.relpath(replay_file, os.path.join(REPLAY_DIR, version)).replace('.SC2Replay', '_' + str(round_num) + '.csv')))
+                                df.to_csv(os.path.join(LOG_SINGLE, os.path.relpath(replay_file, os.path.join(REPLAY_DIR, version+'_2')).replace('.SC2Replay', '_' + str(round_num) + '.csv')))
                                 units = []                              
                                 curr_battle = None
             except ValueError:
@@ -208,7 +207,7 @@ def main(unused_argv, version=STANDARD_VERSION):
                     # with open(replay_parsed_file, 'wb') as file:
                         # file.write(simulation.SerializeToString())
                     # os.rename(replay_file, os.path.join(REPO_DIR, "parsed_basic", os.path.relpath(replay_file, REPLAY_DIR)))
-            os.makedirs(os.path.join(REPO_DIR, 'parsed_basic', version), exist_ok=True)
+            os.makedirs(os.path.join(REPO_DIR, 'parsed_basic', version+'_2'), exist_ok=True)
             os.rename(replay_file, os.path.join(REPO_DIR, "parsed_basic", version, os.path.relpath(replay_file, os.path.join(REPLAY_DIR, version))))
             print('Done.', file=sys.stderr)
        
