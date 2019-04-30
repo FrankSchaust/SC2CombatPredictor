@@ -14,11 +14,9 @@ from s2clientprotocol.sc2api_pb2 import InterfaceOptions, RequestStartReplay, \
     SpatialCameraSetup
 
 from bin.util import *
-from bin.load_data_pipeline import *
+from bin.load_batch import *
 from lib.config import SCREEN_RESOLUTION, MINIMAP_RESOLUTION, MAP_PATH, \
     REPLAYS_PARSED_DIR, REPLAY_DIR, REPO_DIR, STANDARD_VERSION
-from data.simulation_pb2 import Battle, Simulation
-
 
 def main():
     versions = ['1_3d']  

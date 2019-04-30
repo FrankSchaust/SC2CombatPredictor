@@ -13,7 +13,7 @@ from bin.modules import *
 from bin.inception_v4 import inception_v4
 from bin.all_conv_cnn import all_conv
 from bin.inception_SE import inception_v4_se
-
+from bin.inception_v4_small import inception_v4_small
 from lib.config import SCREEN_RESOLUTION, MINIMAP_RESOLUTION, MAP_PATH, \
     REPLAYS_PARSED_DIR, REPLAY_DIR, REPO_DIR, STANDARD_VERSION
 
@@ -22,9 +22,10 @@ from lib.config import SCREEN_RESOLUTION, MINIMAP_RESOLUTION, MAP_PATH, \
 def main():
     os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3' 
     versions = ['1_3d_10sup', '1_3d', '1_3d_15sup']  
-    batch_size = 80
-    cap = 40000
+    batch_size = 20
+    cap = 90000
     epochs = 50
+    data_augmentation = True
     a = 5
     b = 3
     split = int(cap*0.9)
@@ -33,14 +34,28 @@ def main():
     now = datetime.datetime.now()
     lr = 0.001
 
-    tensorboard_dir = os.path.join(REPO_DIR, 'tensorboard_logs', 'Inception_v4', 'LearningRate_'+str(lr)+'_SampleSize_'+str(cap)+'_'+str(now.year)+'-'+str(now.month)+'-'+str(now.day)+'-'+str(now.hour)+'-'+str(now.minute))
+    tensorboard_dir = os.path.join(REPO_DIR, 'tensorboard_logs', 'Inception_v4_SE', 'LearningRate_'+str(lr)+'_SampleSize_'+str(cap)+'_'+str(now.year)+'-'+str(now.month)+'-'+str(now.day)+'-'+str(now.hour)+'-'+str(now.minute))
+    fil = [[], [], []]
+    files = [[], [], []]
+    supp = [[], [], []]
+    for n, v in enumerate(versions):
+        fil[n] = build_file_array(type='csv', version=[v])
+        file, su = filter_close_matchups(fil[n], 10, [v], 'csv')
+        files[n] = file 
+        supp[n] = su
+    # get remaining files
+    files_ = []
+    supp_ = []
+    for i in range(3):
+        files_ = np.append(files_, files[i])
+        supp_ = np.append(supp_, supp[i])
 
-    file = build_file_array(type='csv', version=versions)
-    file, supp_diff = filter_close_matchups(file, 10, versions, 'csv')
+    f = files_[cap:]
+    s = supp_[cap:]
 
 
-    train_dataset = tf.data.TextLineDataset(file[:split-1], compression_type='GZIP')
-    test_dataset = tf.data.TextLineDataset(file[split:cap], compression_type='GZIP')
+    train_dataset = tf.data.TextLineDataset(files_[:split-1], compression_type='GZIP')
+    test_dataset = tf.data.TextLineDataset(files_[split:cap], compression_type='GZIP')
     train_dataset = train_dataset.batch(13*84*84+3)
     test_dataset = test_dataset.batch(13*84*84+3)
     train_dataset = train_dataset.map(parse_func, num_parallel_calls=16)
@@ -48,28 +63,46 @@ def main():
     
     train_dataset = train_dataset.batch(batch_size)
     test_dataset = test_dataset.batch(batch_size)
-    
+
+    if data_augmentation:
+        train_dataset = train_dataset.map(flat_func, num_parallel_calls=16)    
+        test_dataset = test_dataset.map(flat_func, num_parallel_calls=16)
+
+    # get accuracies for each supply difference 
+    validation_dataset = tf.data.TextLineDataset(f, compression_type='GZIP')
+    validation_dataset = validation_dataset.batch(13*84*84+3)
+
+    validation_dataset = validation_dataset.map(parse_func_no_aug, num_parallel_calls=16)      
+    validation_dataset = validation_dataset.batch(1)
+
+
     train_dataset = train_dataset.prefetch(1)
     test_dataset = test_dataset.prefetch(1)
-
     iter = tf.data.Iterator.from_structure(train_dataset.output_types, train_dataset.output_shapes)
-    
     train_init_op = iter.make_initializer(train_dataset)
     test_init_op = iter.make_initializer(test_dataset)
-        
+    val_init_op = iter.make_initializer(validation_dataset)
+    
     features, labels = iter.get_next()
+
+    
+    y_ = inception_v4_small(features)
     # y_ = testitest(features)
     # y_ = inception_v4_se(features)
     # y_ = resnet(features)
     # y_ = all_conv(features)
-    y_ = inception_v4(features)
+    # y_ = inception_v4(features)
     y = labels
     softmax = tf.nn.softmax(y_)
 
     #get trainable params
     para = get_params(tf.trainable_variables())
     print(para)
-    cross_entropy = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(logits=y_, labels=y))
+
+    class_weights = tf.constant([[1.0, 5.0, 9.0]])
+    label_weights = tf.reduce_sum(class_weights * y, axis=1)
+    cross_entropy = tf.reduce_mean(tf.losses.softmax_cross_entropy(logits=y_, onehot_labels=y, weights=label_weights))
+
     results = tf.argmax(y,1), tf.argmax(softmax, 1)
     # add an optimiser
     optimiser = tf.train.AdamOptimizer(learning_rate=lr).minimize(cross_entropy)
@@ -108,6 +141,8 @@ def main():
             epoch_timestamp = datetime.datetime.now()        
             sess.run(train_init_op)
             losses = 0
+            accs = 0
+            taccs = 0
             n= 0
             pred = []
             pred_test = []
@@ -115,10 +150,11 @@ def main():
             gt_test = []
             while True:
                 try:
-                    _, loss, res = sess.run([optimiser, cross_entropy, results])
+                    _, loss, res, acc = sess.run([optimiser, cross_entropy, results, accuracy])
                     gt = np.append(gt, res[0])
                     pred = np.append(pred, res[1])
                     losses += loss / batches
+                    accs += acc / batches
                     sys.stdout.write("\rBatch %2d of %2d" % (n+1, batches))
                     sys.stdout.flush()
                     n += 1
@@ -127,7 +163,8 @@ def main():
             sess.run(test_init_op)
             while True:
                 try:
-                    res_test = sess.run(results)
+                    res_test, tacc = sess.run([results, accuracy])
+                    taccs += tacc/test_batches
                     gt_test = np.append(gt_test, res_test[0])
                     pred_test = np.append(pred_test, res_test[1])
                 except tf.errors.OutOfRangeError:
@@ -140,7 +177,7 @@ def main():
             pt, rct, ft, _ = precision_recall_fscore_support(gt_test, pred_test, average='weighted')
             time_spent = datetime.datetime.now() - epoch_timestamp
             time_to_sec = time_spent.seconds
-            print(" --- Iter: {:-2}, Loss: {:-15.2f} --- TRAINING --- Precision: {:.4f}, Recall: {:.4f}, F1-Score: {:.4f} --- TEST DATA --- Precision: {:.4f}, Recall: {:.4f}, F1-Score: {:.4f} --- Calculated in {} seconds".format(i+1, losses, p, rc, f1, pt, rct, ft, time_spent.seconds))
+            print(" --- Iter: {:-2}, Loss: {:-15.2f} --- TRAINING --- Precision: {:.4f}, Recall: {:.4f}, F1-Score: {:.4f}, Top-1-Error: {:.2f} --- TEST DATA --- Precision: {:.4f}, Recall: {:.4f}, F1-Score: {:.4f}, Top-1-Error: {:.2f} --- Calculated in {} seconds".format(i+1, losses, p, rc, f1, 1-accs, pt, rct, ft, 1-taccs, time_spent.seconds))
             # print(classification_report(gt, pred, target_names=['Minerals', 'Vespene', 'Remis']))
             train_summary = tf.Summary(value=[tf.Summary.Value(tag='train_loss', simple_value=losses),
                                               tf.Summary.Value(tag='train_precision', simple_value=p),
@@ -149,7 +186,8 @@ def main():
                                               tf.Summary.Value(tag='test_recall', simple_value=rct),
                                               tf.Summary.Value(tag='train_f1_score', simple_value=f1),
                                               tf.Summary.Value(tag='test_f1_score', simple_value=ft),
-                                              tf.Summary.Value(tag='train_precision', simple_value=p),
+                                              tf.Summary.Value(tag='train_accuracy', simple_value=accs),
+                                              tf.Summary.Value(tag='test_accuracy', simple_value=taccs),
                                               tf.Summary.Value(tag='time_spent_seconds', simple_value=time_to_sec)])
 
             summary_writer.add_summary(summary=train_summary, global_step=i)
@@ -163,15 +201,37 @@ def main():
         df.to_csv(os.path.join(tensorboard_dir, 'preds.csv'))
         train_time = datetime.datetime.now() - timestamp
         print("\nTraining complete after {}!".format(train_time))
-            
+        training = False
+        # initialize empty list of unique entries to supply
+        uniques = np.unique(s)
+        t_sup_accs = {}
+        c_sup_accs = {}
+        for u in uniques:
+            t_sup_accs[str(int(u*2))] = 0
+            c_sup_accs[str(int(u*2))] = 0
+
+
+        sess.run(val_init_op)
+        for su in s:
+            cp = sess.run(correct_prediction)
+            if cp[0]:
+                t_sup_accs[str(int(su*2))] += 1
+            c_sup_accs[str(int(su*2))] += 1
+
+        for u in uniques:
+            sup_acc = t_sup_accs[str(int(u*2))] / c_sup_accs[str(int(u*2))]
+            sup_sum = tf.Summary(value=[tf.Summary.Value(tag='acc_by_supplydiff', simple_value=sup_acc)])
+
+            summary_writer.add_summary(summary=sup_sum, global_step=int(u*2))
+            summary_writer.flush()
+            print('Acc for samples with supply difference of {}: {}'.format(u, sup_acc))
 
 ### Important Metrics to consider
 # Accuracy Train / Test
 # Loss Train
-# scikit metrics for triplets
+# scikit metrics for triple
 
-
-def parse_func(data):
+def parse_func_no_aug(data):
     record_defaults = [0.0]
     data = tf.decode_csv(data, record_defaults=record_defaults)
     data_ = tf.slice(data[0], [0], [91728])
@@ -187,8 +247,51 @@ def parse_func(data):
     x5 = tf.slice(x_, [5, 0, 0, 0], [1, 84, 84, 1])
     x6 = tf.slice(x_, [2, 0, 0, 0], [1, 84, 84, 1])
     x7 = tf.slice(x_, [11, 0, 0, 0], [1, 84, 84, 1])
+
     prep_layers = tf.concat([x0, x1, x2, x3, x4, x5, x6, x7], 0)
+
     return prep_layers, label
+
+def parse_func(data, aug=True):
+    record_defaults = [0.0]
+    data = tf.decode_csv(data, record_defaults=record_defaults)
+    data_ = tf.slice(data[0], [0], [91728])
+    label = tf.slice(data[0], [91728], [3])
+    x_ = tf.reshape(data_, [13, 84, 84, 1])
+
+    # remove zermo layers
+    x0 = tf.slice(x_, [0, 0, 0, 0], [1, 84, 84, 1])
+    x1 = tf.slice(x_, [6, 0, 0, 0], [1, 84, 84, 1])
+    x2 = tf.slice(x_, [8, 0, 0, 0], [1, 84, 84, 1])
+    x3 = tf.slice(x_, [9, 0, 0, 0], [1, 84, 84, 1])
+    x4 = tf.slice(x_, [10, 0, 0, 0], [1, 84, 84, 1])
+    x5 = tf.slice(x_, [5, 0, 0, 0], [1, 84, 84, 1])
+    x6 = tf.slice(x_, [2, 0, 0, 0], [1, 84, 84, 1])
+    x7 = tf.slice(x_, [11, 0, 0, 0], [1, 84, 84, 1])
+
+    prep_layers = tf.concat([x0, x1, x2, x3, x4, x5, x6, x7], 0)
+    if aug:
+        prep = [[], [], []]
+        for k in range(3):
+            x0_flipped = tf.image.rot90(x0, k=k+1)
+            x1_flipped = tf.image.rot90(x1, k=k+1)
+            x2_flipped = tf.image.rot90(x2, k=k+1)
+            x3_flipped = tf.image.rot90(x3, k=k+1)
+            x4_flipped = tf.image.rot90(x4, k=k+1)
+            x5_flipped = tf.image.rot90(x5, k=k+1)
+            x6_flipped = tf.image.rot90(x6, k=k+1)
+            x7_flipped = tf.image.rot90(x7, k=k+1)
+            prep[k]= tf.concat([x0_flipped, x1_flipped, x2_flipped, x3_flipped, x4_flipped, x5_flipped, x6_flipped, x7_flipped], 0)
+        prep_layers = tf.stack([prep[0], prep[1], prep[2], prep_layers], axis = 0)
+        label = tf.stack([label, label, label, label], axis = 0)
+    return prep_layers, label
+
+def flat_func(features, labels):
+    features = tf.reshape(features, [-1, 8, 84, 84, 1])
+    labels = tf.reshape(labels, [-1, 3])
+    
+    return features, labels
+        
 
 def resnet(x_):
     a = 5

@@ -34,15 +34,17 @@ from bin.modules import stem, inception_a, inception_b, inception_c, reduction_a
     # - instead of using only one dense layer with the number of classes as units we introduce an additional dense layer to achieve high level reasoning
     # - The average pooling layer does not average across the whole matrix, but instead averages across each armies zone to compute 2 comparable values of each feature matrix for the dense layer(shape 8,2,1)
 
-def inception_v4(x_):
+def inception_v4_small(x_):
+
+    base=2
     with tf.name_scope("Stem"):
         x_max = tf.layers.max_pooling3d(x_, pool_size=[1,2,2], strides=(1,2,2))
-        x_ = stem(x_max, "Stem")
+        x_ = stem(x_max, "Stem", base=base)
         print_layer_details(tf.contrib.framework.get_name_scope(), x_.get_shape())
     with tf.name_scope("Inception_A"):
         shortcut = x_
         for i in range(1):
-            x_ = inception_a(x_, "Inception_A"+str(i))
+            x_ = inception_a(x_, "Inception_A"+str(i), base=base)
             # map identity with [1,1,1] kernel to match dimensions
             shortcut = tf.layers.conv3d(shortcut, filters=x_.get_shape()[4], kernel_size=[1,1,1], strides=(1,1,1), padding='Valid', kernel_regularizer=tf.keras.regularizers.l2(1e-4), activation=tf.nn.relu)
             # [shortcut matrix, residual matrix]
@@ -50,23 +52,23 @@ def inception_v4(x_):
             x_ = tf.nn.relu(x_)
         print_layer_details(tf.contrib.framework.get_name_scope(), x_.get_shape())
     with tf.name_scope("Reduction_A"):
-        x_ = reduction_a(x_, "Reduction_A")
+        x_ = reduction_a(x_, "Reduction_A", base=base)
         print_layer_details(tf.contrib.framework.get_name_scope(), x_.get_shape())
     with tf.name_scope("Inception_B"):
         shortcut = x_
         for i in range(1):
-            x_ = inception_b(x_, "Inception_B")
+            x_ = inception_b(x_, "Inception_B", base=base)
             shortcut = tf.layers.conv3d(shortcut, filters=x_.get_shape()[4], kernel_size=[1,1,1], strides=(1,1,1), padding='Valid', kernel_regularizer=tf.keras.regularizers.l2(1e-4), activation=tf.nn.relu)
             x_ = tf.keras.layers.add([shortcut, x_])
             x_ = tf.nn.relu(x_)
         print_layer_details(tf.contrib.framework.get_name_scope(), x_.get_shape())
     with tf.name_scope("Reduction_B"):
-        x_ = reduction_b(x_, "Reduction_B")
+        x_ = reduction_b(x_, "Reduction_B", base=base)
         print_layer_details(tf.contrib.framework.get_name_scope(), x_.get_shape())
     with tf.name_scope("Inception_C"):
         shortcut = x_
         for i in range(1):
-            x_ = inception_c(x_, "Inception_C")
+            x_ = inception_c(x_, "Inception_C", base=base)
             shortcut = tf.layers.conv3d(shortcut, filters=x_.get_shape()[4], kernel_size=[1,1,1], strides=(1,1,1), padding='Valid', kernel_regularizer=tf.keras.regularizers.l2(1e-4), activation=tf.nn.relu)
             x_ = tf.keras.layers.add([shortcut, x_])
             x_ = tf.nn.relu(x_)

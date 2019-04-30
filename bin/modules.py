@@ -16,10 +16,9 @@
 import os
 import sys
 
-import keras 
 import tensorflow as tf
 
-from bin.util import *
+from bin.util import print_layer_details
 
 def Max_Pooling(x, pool_size=[1,3,3], stride=(1,2,2), padding='VALID'):
     return tf.layers.max_pooling3d(inputs=x, pool_size=pool_size, strides=stride, padding=padding)
@@ -33,8 +32,8 @@ def Concat(x):
 
 
 # definitions for inception v4
-def stem(input, scope):
-    base = 8    
+def stem(input, scope, base=8):
+
     with tf.name_scope(scope):
         x_ = Conv_Layer(input, filter=base, kernel=[1,3,3], layer_name=scope+'_conv1')
         x_ = Conv_Layer(x_, filter=base, kernel=[1,3,3], padding='VALID', layer_name=scope+'_conv2')
@@ -59,8 +58,7 @@ def stem(input, scope):
         x = tf.layers.batch_normalization(inputs=x, training=True)
         return x
 
-def inception_a( input, scope):
-    base = 8
+def inception_a( input, scope, base=8):
     with tf.name_scope(scope):
         # far left side
         x_fl = Avg_Pooling(input)
@@ -79,8 +77,7 @@ def inception_a( input, scope):
         x = tf.layers.batch_normalization(inputs=x, training=True)
         return x
         
-def inception_b( input, scope):
-    base = 8
+def inception_b( input, scope, base=8):
     with tf.name_scope(scope):
         # far left side
         x_fl = Avg_Pooling(input)
@@ -102,8 +99,7 @@ def inception_b( input, scope):
         x = tf.layers.batch_normalization(inputs=x, training=True)
         return x        
     
-def inception_c( input, scope):
-    base = 8
+def inception_c( input, scope, base=8):
     with tf.name_scope(scope):
         # far left side
         x_fl = Avg_Pooling(input)
@@ -125,8 +121,7 @@ def inception_c( input, scope):
         x = tf.layers.batch_normalization(inputs=x, training=True)
         return x 
    
-def reduction_a( input, scope):
-    base = 8
+def reduction_a( input, scope, base=8):
     with tf.name_scope(scope):
         max_pool = tf.layers.max_pooling3d(input, pool_size=[1,3,3], strides=(1,2,2), padding='VALID')
 
@@ -141,8 +136,7 @@ def reduction_a( input, scope):
         
         return x
    
-def reduction_b( input, scope):
-    base = 8
+def reduction_b( input, scope, base=8):
     with tf.name_scope(scope):
         max_pool = tf.layers.max_pooling3d(input, pool_size=[1,3,3], strides=(1,2,2), padding='VALID')
 

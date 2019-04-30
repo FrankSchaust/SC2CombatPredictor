@@ -16,8 +16,6 @@
 import os
 import sys
 
-
-import keras
 import numpy as np
 import tensorflow as tf
 from absl import app

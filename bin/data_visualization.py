@@ -17,7 +17,7 @@ import os
 import sys
 import csv
 
-from bin.util import read_csv
+from bin.util import read_csv, build_file_array, filter_close_matchups, return_unit_values_by_id
 
 import pandas as pd
 import numpy as np
@@ -86,164 +86,227 @@ zerg_ids = [111,#Verseucher
     
     
 def main(unsued_args):
-    replay_log_files = []
     match_arr = []
     count_race_wins = {'zerg_count': 0,
                        'zerg_win': 0,
-                       'zerg_win_prot': 0,
-                       'zerg_win_terr': 0,
+                       'zerg_win_protoss': 0,
+                       'zerg_win_terran': 0,
                        'zerg_win_zerg': 0,
-                       'prot_count': 0,
-                       'prot_win': 0,
-                       'prot_win_zerg': 0,
-                       'prot_win_terr': 0,
-                       'prot_win_prot': 0,
-                       'terr_count': 0,
-                       'terr_win': 0,
-                       'terr_win_prot': 0,
-                       'terr_win_zerg': 0,
-                       'terr_win_terr': 0,
+                       'protoss_count': 0,
+                       'protoss_win': 0,
+                       'protoss_win_zerg': 0,
+                       'protoss_win_terran': 0,
+                       'protoss_win_protoss': 0,
+                       'terran_count': 0,
+                       'terran_win': 0,
+                       'terran_win_protoss': 0,
+                       'terran_win_zerg': 0,
+                       'terran_win_terran': 0,
                        'avg_unit_count': 0
                        }
-    for root, dir, files in os.walk(os.path.join(REPO_DIR, 'log')):
-        for file in files:
-            if file.endswith(".csv"):
-                replay_log_files.append(os.path.join(root, file))
-    i = 0
-    print('Looking over', len(replay_log_files), 'files')
-    while i < len(replay_log_files):
-        match_arr.append(read_csv(replay_log_files[i]))
-        i = i + 1
-        if i%10000 == 0:
-            print(i, 'csv-files loaded')
-    i = 0
-    print('match_arr built...', match_arr[0])
-    print(len(terran_ids))
-    while i < len(match_arr):
+    match_arr = []
+    logs = []
+    logs = build_file_array(type='logs', version=['1_3d', '1_3d_10sup', '1_3d_15sup'])
+    for l in logs:
+        match = read_csv(l)
+        if match is None: 
+            continue 
+        if ((match['team_A'] is None) and (match['team_B'] is None)):
+            continue
+        match_arr.append(match)
+    print(len(match_arr))
+    supplies = {'A': [], 'B': []}
+    CloseWins = {'zerg': 0, 'protoss': 0, 'terran': 0}
+    HighDiffWins = {'zerg': 0, 'protoss': 0, 'terran': 0}
+    EvenWins = {'zerg': 0, 'protoss': 0, 'terran': 0}
+    BehindWins = {'zerg': 0, 'protoss': 0, 'terran': 0}
+    Remis = {'high A': 0, 'high B': 0, 'even': 0, 'close A': 0, 'close B': 0}
+    count = 0
+    for m in match_arr:
         #Get the races by Names
-        race_A = map_id_to_units_race(match_arr[i]['team_A'][0])
-        race_B = map_id_to_units_race(match_arr[i]['team_B'][0])
+        race_A = map_id_to_units_race(m['team_A'][0])
+        race_B = map_id_to_units_race(m['team_B'][0])
+
+        supply = {'A': 0, 'B': 0}
+        #Get supplies for each side 
+        for side in {"A", "B"}:
+            supply[side] = 0
+            team = 'team_' + side
+            if m[team] is None:
+                break
+            for unit in m[team]:
+                if int(unit) == 85:
+                    continue
+                unit_val = return_unit_values_by_id(int(unit))
+                supply[side] += unit_val['supply']
+            supplies[side].append(supply[side])
+        
+        winCond = detWinsCond(supply)
+        if (supply['A'] - supply['B'] > 10 and str(m['winner_code']) == 1) or (supply['A'] - supply['B'] < -10 and str(m['winner_code']) == 0):
+            count += 1
+        try:
+            wc = str(m['winner_code'])
+            if wc == '2':
+                Remis[winCond] += 1
+            else:
+                if wc == '2':
+                    continue
+                if winCond == 'even':
+                    if wc == '0':
+                        EvenWins[race_A.lower()] += 1
+                    else:
+                        EvenWins[race_B.lower()] += 1
+                if winCond == 'high A':
+                    if wc == '0':
+                        HighDiffWins[race_A.lower()] += 1
+                    else:
+                        BehindWins[race_B.lower()] += 1
+                if winCond == 'close A':
+                    if wc == '0':
+                        CloseWins[race_A.lower()] += 1
+                    else:
+                        BehindWins[race_B.lower()] += 1
+                if winCond == 'high B':
+                    if wc == '1':
+                        HighDiffWins[race_B.lower()] += 1
+                    else:
+                        BehindWins[race_A.lower()] += 1
+                if winCond == 'close B':
+                    if wc == '1':
+                        CloseWins[race_B.lower()] += 1
+                    else:
+                        BehindWins[race_A.lower()] += 1
+            # print(wc, winCond, BehindWins)
+        except KeyError:
+            print(supply, winCond)
         # if race_A == 'No Match':
             # print('Team A', replay_log_files[i], str(match_arr[i]['team_A']))
         # if race_B == 'No_Match':
             # print('Team B', replay_log_files[i], str(match_arr[i]['team_B']))
         #Get the winning faction
-        if match_arr[i]['winner_code'] == '0':
-            winner_race = race_A
-        elif match_arr[i]['winner_code'] == '1':
-            winner_race = race_B
-        else: winner_race = 'Remis'
-        
-        #print(match_arr[i])
+
         #Compare the statistics for races and collect them
         #Results for Zerg
-        if race_A == 'Zerg' or race_B == 'Zerg':
-            count_race_wins['zerg_count'] += 1
-        if race_A == 'Zerg' and match_arr[i]['winner_code'] == '0':
-            count_race_wins['zerg_win'] += 1
-            if race_B == 'Protoss':
-                count_race_wins['zerg_win_prot'] += 1
-            if race_B == 'Terran':
-                count_race_wins['zerg_win_terr'] += 1
-            if race_B == 'Zerg':
-                count_race_wins['zerg_win_zerg'] += 1
-        if race_B == 'Zerg' and match_arr[i]['winner_code'] == '1':
-            count_race_wins['zerg_win'] += 1
-            if race_A == 'Protoss':
-                count_race_wins['zerg_win_prot'] += 1
-            if race_A == 'Terran':
-                count_race_wins['zerg_win_terr'] += 1
-            if race_A == 'Zerg':
-                count_race_wins['zerg_win_zerg'] += 1
-                
-        #Results for Protoss
-        if race_A == 'Protoss' or race_B == 'Protoss':
-            count_race_wins['prot_count'] += 1
-        if race_A == 'Protoss' and match_arr[i]['winner_code'] == '0':
-            count_race_wins['prot_win'] += 1
-            if race_B == 'Zerg':
-                count_race_wins['prot_win_zerg'] += 1
-            if race_B == 'Terran':
-                count_race_wins['prot_win_terr'] += 1
-            if race_B == 'Protoss':
-                count_race_wins['prot_win_prot'] += 1
-        if race_B == 'Protoss' and match_arr[i]['winner_code'] == '1':
-            count_race_wins['prot_win'] += 1
-            if race_A == 'Zerg':
-                count_race_wins['prot_win_zerg'] += 1
-            if race_A == 'Terran':
-                count_race_wins['prot_win_terr'] += 1
-            if race_A == 'Protoss':
-                count_race_wins['prot_win_prot'] += 1
-                
-        #Results for Terran
-        if race_A == 'Terran' or race_B == 'Terran':
-            count_race_wins['terr_count'] += 1
-        if race_A == 'Terran' and match_arr[i]['winner_code'] == '0':
-            count_race_wins['terr_win'] += 1
-            if race_B == 'Zerg':
-                count_race_wins['terr_win_zerg'] += 1
-            if race_B == 'Protoss':
-                count_race_wins['terr_win_prot'] += 1
-            if race_B == 'Terran':
-                count_race_wins['terr_win_terr'] += 1
-        if race_B == 'Terran' and match_arr[i]['winner_code'] == '1':
-            count_race_wins['terr_win'] += 1
-            if race_A == 'Zerg':
-                count_race_wins['terr_win_zerg'] += 1
-            if race_A == 'Protoss':
-                count_race_wins['terr_win_prot'] += 1    
-            if race_A == 'Terran':
-                count_race_wins['terr_win_terr'] += 1
-        i = i + 1
-     
-    print(count_race_wins)
+
+        
+        if race_A == race_B:
+            count_race_wins[race_A.lower()+'_count'] += 1
+        else:
+            count_race_wins[race_A.lower()+'_count'] += 1
+            count_race_wins[race_B.lower()+'_count'] += 1
+
+        if wc == '0':
+            count_race_wins[race_A.lower()+'_win'] += 1
+            count_race_wins[race_A.lower()+'_win_'+race_B.lower()] += 1
+        if wc == '1':
+            count_race_wins[race_B.lower()+'_win'] += 1
+            count_race_wins[race_B.lower()+'_win_'+race_A.lower()] += 1
+        
+    diffs = []
+    diffCount = {}
+    print(count)
+    # print(len(supplies["A"]), len(supplies["B"]))
+    for s in range(len(supplies["A"])):
+        diffs.append(abs(supplies["A"][s]-supplies["B"][s]))
+    uniques = np.unique(diffs)
+    for u in uniques:
+        diffCount[str(u*2)] = diffs.count(u)
+    #print(uniques)
+    #print(diffCount)
+    #print(count_race_wins)
+    #print(CloseWins, HighDiffWins, BehindWins, EvenWins, Remis)
     n_groups = 3
     
-    val_count = (count_race_wins['prot_count'], count_race_wins['terr_count'], count_race_wins['zerg_count'])
-    val_win = (count_race_wins['prot_win'], count_race_wins['terr_win'], count_race_wins['zerg_win'])
-    val_win_ag_zerg = (count_race_wins['prot_win_zerg'], count_race_wins['terr_win_zerg'], count_race_wins['zerg_win_zerg'])
-    val_win_ag_prot = (count_race_wins['prot_win_prot'], count_race_wins['terr_win_prot'], count_race_wins['zerg_win_prot'])
-    val_win_ag_terr = (count_race_wins['prot_win_terr'], count_race_wins['terr_win_terr'], count_race_wins['zerg_win_terr'])
+    val_count = (count_race_wins['protoss_count'], count_race_wins['terran_count'], count_race_wins['zerg_count'])
+    val_win = (count_race_wins['protoss_win'], count_race_wins['terran_win'], count_race_wins['zerg_win'])
+    val_win_ag_zerg = (count_race_wins['protoss_win_zerg'], count_race_wins['terran_win_zerg'], count_race_wins['zerg_win_zerg'])
+    val_win_ag_prot = (count_race_wins['protoss_win_protoss'], count_race_wins['terran_win_protoss'], count_race_wins['zerg_win_protoss'])
+    val_win_ag_terr = (count_race_wins['protoss_win_terran'], count_race_wins['terran_win_terran'], count_race_wins['zerg_win_terran'])
     
-    fig, ax = plt.subplots()
+    zerg = (CloseWins['zerg'], BehindWins['zerg'], HighDiffWins['zerg'], EvenWins['zerg'])
+    protoss = (CloseWins['protoss'], BehindWins['protoss'], HighDiffWins['protoss'], EvenWins['protoss'])
+    terran = (CloseWins['terran'], BehindWins['terran'], HighDiffWins['terran'], EvenWins['terran'])
+    # print(zerg)
+    fig = plt.figure()
+    
 
+    # ax = plt.subplot()
+    # bx = plt.subplot()
+    cx = plt.subplot()
+
+    vals = []
+    for m in uniques:
+        vals.append(diffCount[str(m*2)])
     index = np.arange(n_groups)
+    index_2 = np.arange(len(uniques))
+    index_3 = np.arange(4)
     bar_width = 0.1
 
     opacity = 0.4
     error_config = {'ecolor': '0.3'}
     
-    rects1 = ax.bar(index, val_count, bar_width, alpha=opacity, color='b', error_kw=error_config, label='Matchcount[Protoss|Terran|Zerg]')
-    rects2 = ax.bar(index + bar_width, val_win, bar_width, alpha=opacity, color='r', error_kw=error_config, label='Wincount[P|T|Z]')
-    rects3 = ax.bar(index + 2*bar_width, val_win_ag_zerg, bar_width, alpha=opacity, color='y', error_kw=error_config, label='Wincount Against Zerg[P|T|Z]')
-    rects4 = ax.bar(index + 3*bar_width, val_win_ag_prot, bar_width, alpha=opacity, color='g', error_kw=error_config, label='Wincount Against Protoss[P|T|Z]')
-    rects5 = ax.bar(index + 4*bar_width, val_win_ag_terr, bar_width, alpha=opacity, color='c', error_kw=error_config, label='Wincount Against Terran[P|T|Z]')
+    # rects1 = ax.bar(index, val_count, bar_width, alpha=opacity, color='b', error_kw=error_config, label='Anzahl Gefechte [Protoss|Terran|Zerg]')
+    # rects2 = ax.bar(index + bar_width, val_win, bar_width, alpha=opacity, color='r', error_kw=error_config, label='Anzahl Siege [P|T|Z]')
+    # rects3 = ax.bar(index + 2*bar_width, val_win_ag_zerg, bar_width, alpha=opacity, color='y', error_kw=error_config, label='Anzahl Siege gegen Zerg [P|T|Z]')
+    # rects4 = ax.bar(index + 3*bar_width, val_win_ag_prot, bar_width, alpha=opacity, color='g', error_kw=error_config, label='Anzahl Siege gegen Protoss [P|T|Z]')
+    # rects5 = ax.bar(index + 4*bar_width, val_win_ag_terr, bar_width, alpha=opacity, color='c', error_kw=error_config, label='Anzahl Siege gegen Terran [P|T|Z]')
     
-    ax.set_xlabel('Races')
-    ax.set_ylabel('Counts')
-    ax.set_title('Count of encounters and wins per race')
-    ax.set_xticks(index + bar_width/5)
-    ax.set_xticklabels(('Protoss', 'Terran', 'Zerg'))
-    ax.legend()
+    # ax.set_xlabel('Rasse')
+    # ax.set_ylabel('Anzahl')
+    # ax.set_title('Anzahl der Gefechte und Siege per Rasse')
+    # ax.set_xticks(index + bar_width/5)
+    # ax.set_xticklabels(('Protoss', 'Terran', 'Zerg'))
+    # ax.legend()
     
-    def autolabel(rects):
+    
+    # bx.bar(index_2, vals, alpha=opacity, error_kw=error_config)
+    # bx.set_xlabel('Supply-Differenzen')
+    # bx.set_ylabel('Anzahl Gefechte')
+
+
+    c_rects1 = cx.bar(index_3, zerg, bar_width, alpha=opacity, color='b', error_kw=error_config, label='Zerg')
+    c_rects2 = cx.bar(index_3 + bar_width, protoss, bar_width, alpha=opacity, color='r', error_kw=error_config, label='Protoss')
+    c_rects3 = cx.bar(index_3 + bar_width*2, terran, bar_width, alpha=opacity, color='y', error_kw=error_config, label='Terran')
+
+    cx.set_ylabel('Anzahl Siege')
+    cx.set_xticks(index_3 + bar_width/4)
+    cx.set_xticklabels(('Sieg bei kleiner Differenz', 'Sieg trotz Nachteil', 'Sieg mit hoher Differenz', 'Sieg bei gleichem Supply'))
+    cx.legend()
+
+    def autolabel(rects, ax):
         for rect in rects:
             height = rect.get_height()
             ax.text(rect.get_x() + rect.get_width()/2., 1.05*height,
                     '%d' % int(height),
                     ha='center', va='bottom')
 
-    autolabel(rects1)
-    autolabel(rects2)
-    autolabel(rects3)
-    autolabel(rects4)
-    autolabel(rects5)
+    # autolabel(rects1, ax)
+    # autolabel(rects2, ax)
+    # autolabel(rects3, ax)
+    # autolabel(rects4, ax)
+#     autolabel(rects5, ax)
 
+    autolabel(c_rects1, cx)
+    autolabel(c_rects2, cx)
+    autolabel(c_rects3, cx)
 
     fig.tight_layout()
     plt.show()
-    
+
+def detWinsCond(supply):
+    diff = supply['A'] - supply['B']
+    if diff == 0:
+        return 'even'
+    #Close Matchups
+    if diff <= 5 and diff > 0:
+        return 'close A'
+    if diff < 0 and diff >= -5:
+        return 'close B'
+    if diff > 5:
+        return 'high A'
+    if diff < -5:
+        return 'high B'
+
 def map_id_to_units_race(single_id):
     if isInArray(single_id, terran_ids):
         return 'Terran'
