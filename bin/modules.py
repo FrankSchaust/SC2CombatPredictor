@@ -27,6 +27,10 @@ def Avg_Pooling(x, pool_size=[1,3,3], stride=(1,1,1), padding='SAME'):
 def Conv_Layer(input, filter, kernel, stride=(1,1,1), padding='SAME', layer_name="conv"):
     with tf.name_scope(layer_name):
         return tf.layers.conv3d(inputs=input, use_bias=True, filters=filter, kernel_size=kernel, strides=stride, padding=padding, activation=tf.nn.relu, kernel_regularizer=tf.keras.regularizers.l2(1e-4))
+def BN_Conv_Layer(input, filter, kernel, stride=(1,1,1), padding='SAME', layer_name="conv"):
+        x = Conv_Layer(input, filter, kernel, stride, padding, layer_name)
+        return tf.layers.batch_normalization(inputs=x, training=True)
+        
 def Concat(x): 
     return tf.concat(x, 4)
 
@@ -233,7 +237,7 @@ def residual_block_3d(input, block_function, filters, repetitions, kernel_regula
             if i == 0 and not is_first_layer:
                 strides=(1, 2, 2)
             input = block_function(input, filters=filters, strides=strides, kernel_regularizer=kernel_regularizer)   
-            param = print_layer_details(scope + '_' + str(i), input.get_shape())
+            _ = print_layer_details(scope + '_' + str(i), input.get_shape())
     return input
     
 ### define basic block 
@@ -255,4 +259,4 @@ def bottleneck(input, filters, strides=(1,1,1), kernel_regularizer=tf.keras.regu
         
         residual = bn_relu_conv(conv_3_3, filters=filters*4, kernel_size=[1,1,1], strides=(1,1,1), padding='SAME', kernel_regularizer=kernel_regularizer)
         # print(is_first_block_of_first_layer, input.get_shape(), conv_1_1.get_shape(), conv_3_3.get_shape())
-        return shortcut3d(input, residual)
+        return shortcut3d(input, residual, strides)

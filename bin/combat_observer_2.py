@@ -25,7 +25,7 @@ from s2clientprotocol.common_pb2 import Size2DI
 from s2clientprotocol.sc2api_pb2 import InterfaceOptions, RequestStartReplay, \
     SpatialCameraSetup
 
-from lib.config import SCREEN_RESOLUTION, MINIMAP_RESOLUTION, MAP_PATH, \
+from lib.config import MAP_PATH, \
     REPLAYS_PARSED_DIR, REPLAY_DIR, REPO_DIR, STANDARD_VERSION, REPLAY_VERSION
 from data.simulation_pb2 import Battle, Simulation
 

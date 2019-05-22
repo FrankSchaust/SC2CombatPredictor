@@ -26,6 +26,7 @@ replays_parsed_v1_1/
 saves/
 Proc_Data_
 screens/
+unused_logs
 tensorboard/
 tensorboard_logs/
 tensorboard_sumlogs/

@@ -37,8 +37,7 @@ from mpl_toolkits.mplot3d.axes3d import Axes3D
 
 from bin.util import *
 from lib.unit_constants import *
-from lib.config import SCREEN_RESOLUTION, MINIMAP_RESOLUTION, MAP_PATH, \
-    REPLAYS_PARSED_DIR, REPLAY_DIR, REPO_DIR, STANDARD_VERSION
+from lib.config import REPLAYS_PARSED_DIR, REPLAY_DIR, REPO_DIR, STANDARD_VERSION
     
 def main():
     learning_rates = [0.05]

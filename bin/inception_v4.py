@@ -79,8 +79,8 @@ def inception_v4(x_):
         height = int(int(x_.get_shape()[3])/2)
         x_avg = tf.layers.average_pooling3d(x_, pool_size=[1, width, height], strides=(1,width,height))
         x_flat = tf.layers.flatten(inputs=x_avg)
-        # x_dense = tf.layers.dense(inputs=x_flat, units=64, activation=tf.nn.relu, kernel_regularizer=tf.keras.regularizers.l2(1e-4))
+        x_dense = tf.layers.dense(inputs=x_flat, units=64, activation=tf.nn.relu, kernel_regularizer=tf.keras.regularizers.l2(1e-4))
         
-        y_ = tf.layers.dense(inputs=x_flat, units=3, kernel_regularizer=tf.keras.regularizers.l2(1e-4))
+        y_ = tf.layers.dense(inputs=x_dense, units=3, kernel_regularizer=tf.keras.regularizers.l2(1e-4))
         print_layer_details(tf.contrib.framework.get_name_scope(), y_.get_shape())
     return y_

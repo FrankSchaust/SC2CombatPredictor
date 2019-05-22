@@ -25,8 +25,7 @@ import tensorflow as tf
 from absl import app
 
 from lib.unit_constants import *
-from lib.config import SCREEN_RESOLUTION, MINIMAP_RESOLUTION, MAP_PATH, \
-    REPLAYS_PARSED_DIR, REPLAY_DIR, REPO_DIR, STANDARD_VERSION
+from lib.config import REPLAYS_PARSED_DIR, REPLAY_DIR, REPO_DIR, STANDARD_VERSION
 
 
 

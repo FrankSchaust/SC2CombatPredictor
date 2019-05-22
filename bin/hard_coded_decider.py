@@ -34,8 +34,7 @@ from matplotlib.ticker import MaxNLocator
 from sklearn.metrics import classification_report, f1_score
 
 from lib.unit_constants import *
-from lib.config import SCREEN_RESOLUTION, MINIMAP_RESOLUTION, MAP_PATH, \
-    REPLAYS_PARSED_DIR, REPLAY_DIR, REPO_DIR
+from lib.config import REPLAYS_PARSED_DIR, REPLAY_DIR, REPO_DIR
     
 
 def main():
@@ -48,23 +47,20 @@ def main():
     skip_remis = False
     file_version = 'multiple'
     versions = ['1_3d_10sup', '1_3d', '1_3d_15sup']
-    if file_version == 'multiple':
-        replay_log_files = []
-        replay_log_files = build_file_array('logs', versions)
-        i = 0
-        print('Looking over', len(replay_log_files), 'files')
-        while i < len(replay_log_files):
-            match = read_csv(replay_log_files[i])
-            match_arr.append(match)
-            i = i + 1
-            if i%10000 == 0:
-                print(i, 'csv-files loaded')
 
-        print('match_arr built...')
-    if file_version == 'single':
-        file_path = os.path.join(REPO_DIR, 'all_csv_from_version_' + version + '.csv')
-        match_arr = read_summed_up_csv(file_path)
-    # factor = np.arange(1, 101, 5)
+    replay_log_files = []
+    replay_log_files = build_file_array('logs', versions)
+    print('Looking over', len(replay_log_files), 'files')
+    i = 0
+    while i < len(replay_log_files):
+        match = read_csv(replay_log_files[i])
+        match_arr.append(match)
+        i = i + 1
+        if i%10000 == 0:
+            print(i, 'csv-files loaded')
+
+    print('match_arr built...')
+
     factor = [1]
     acc = []
     f1 = []
@@ -202,29 +198,17 @@ def estimateOutcome(fightable_A, fightable_B, powervalue_A, powervalue_A_ground,
     ### If units A can fight units b but not the other way around AND
     ### units A are powerfull enough to clear map within 45s TEAM A WINS 
     ### otherwise REMIS
-    # if fightable_A and not fightable_B: 
-    #     # times factor because the map limit per encounter is set to 2 in-game minutes
-    #     if (powervalue_A_ground*factor) >= hitpoints_armor_and_shield_B_ground and (powervalue_A_air*factor) >= hitpoints_armor_and_shield_B_air:
-    #         return 0
-    #     else: 
-    #         return 2
-    # ### Same logic applied to Team B 
-    # if not fightable_A and fightable_B:
-    #     if (powervalue_B_ground*factor) >= hitpoints_armor_and_shield_A_ground and (powervalue_B_air*factor) >= hitpoints_armor_and_shield_A_air:
-    #         return 1
-    #     else:
-    #         return 2
 
     ### Estimate whether a Team can kill the other Team in time
-    # killable_A = True
-    # if powervalue_A_ground * factor < hitpoints_armor_and_shield_B_ground or powervalue_A_air * factor < hitpoints_armor_and_shield_B_air:
-    #     killable_A = False
-    # killable_B = True
-    # if powervalue_B_ground * factor < hitpoints_armor_and_shield_A_ground or powervalue_B_air * factor < hitpoints_armor_and_shield_A_air:
-    #     killable_B = False
+    killable_A = True
+    if powervalue_A_ground * factor < hitpoints_armor_and_shield_B_ground or powervalue_A_air * factor < hitpoints_armor_and_shield_B_air:
+        killable_A = False
+    killable_B = True
+    if powervalue_B_ground * factor < hitpoints_armor_and_shield_A_ground or powervalue_B_air * factor < hitpoints_armor_and_shield_A_air:
+        killable_B = False
     
-    # if not killable_A and not killable_B:
-    #     return 2
+    if not killable_A and not killable_B:
+        return 2
     ### If both teams can fight each other, we compare the calculated powervalues
     if powervalue_A * (hitpoints_armor_and_shield_A_ground + hitpoints_armor_and_shield_A_air) > powervalue_B * (hitpoints_armor_and_shield_A_ground + hitpoints_armor_and_shield_A_air):
         return 0

@@ -25,7 +25,7 @@ from absl import app
 import matplotlib.pyplot as plt
 from matplotlib.ticker import MaxNLocator
 
-from lib.config import SCREEN_RESOLUTION, MINIMAP_RESOLUTION, MAP_PATH, \
+from lib.config import MAP_PATH, \
     REPLAYS_PARSED_DIR, REPLAY_DIR, REPO_DIR
     
 terran_ids = [49,#reaper
